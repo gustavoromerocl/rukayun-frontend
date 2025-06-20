@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { PawPrint } from "lucide-react";
 
 export function Navbar() {
   const linkClassName = cn(
@@ -9,8 +10,11 @@ export function Navbar() {
   );
 
   return (
-    <nav className="w-full flex items-center justify-between px-8 py-4 border-b bg-white">
-      <Link to="/" className="w-8 h-8 bg-gray-200 rounded" />
+    <nav className="w-full flex items-center justify-between px-8 py-4 border-b bg-background">
+      <Link to="/" className="flex items-center gap-2 text-foreground">
+        <PawPrint className="w-8 h-8 text-primary" />
+        <span className="font-bold">Rukayun</span>
+      </Link>
       <div className="flex gap-2">
         <Link to="/animales" className={linkClassName}>Animales</Link>
         <Link to="/educacion" className={linkClassName}>Educación</Link>
