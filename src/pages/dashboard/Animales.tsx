@@ -64,63 +64,64 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 const initialData: Animal[] = [
-    {
-        id: "m5gr84i9",
-        nombre: "Max",
-        fotoUrl: "https://placedog.net/500/500?id=1",
-        especie: "Perro",
-        sexo: "Macho",
-        tamano: "Grande",
-        peso: "28.5 kg",
-        fechaNacimiento: "2022-01-15",
-        publicado: true,
-      },
-      {
-        id: "3u1reuv4",
-        nombre: "Luna",
-        fotoUrl: "https://placedog.net/500/500?id=2",
-        especie: "Gato",
-        sexo: "Hembra",
-        tamano: "Pequeño",
-        peso: "4.2 kg",
-        fechaNacimiento: "2023-03-20",
-        publicado: true,
-      },
-      {
-        id: "derv1ws0",
-        nombre: "Rocky",
-        fotoUrl: "https://placedog.net/500/500?id=3",
-        especie: "Perro",
-        sexo: "Macho",
-        tamano: "Mediano",
-        peso: "22 kg",
-        fechaNacimiento: "2021-07-10",
-        publicado: false,
-      },
-      {
-        id: "5kma53ae",
-        nombre: "Bella",
-        fotoUrl: "https://placedog.net/500/500?id=4",
-        especie: "Perro",
-        sexo: "Hembra",
-        tamano: "Pequeño",
-        peso: "8 kg",
-        fechaNacimiento: "2023-11-01",
-        publicado: true,
-      },
-      {
-        id: "bhqecj4p",
-        nombre: "Charlie",
-        fotoUrl: "https://placedog.net/500/500?id=5",
-        especie: "Gato",
-        sexo: "Macho",
-        tamano: "Mediano",
-        peso: "5.5 kg",
-        fechaNacimiento: "2020-05-25",
-        publicado: true,
-      },
+  {
+    id: "1",
+    nombre: "Luna",
+    fotoUrl: "https://images.unsplash.com/photo-1543852786-1cf6624b998d?w=400&h=400&fit=crop&crop=face",
+    especie: "Perro",
+    sexo: "Hembra",
+    tamano: "Mediano",
+    peso: "15 kg",
+    fechaNacimiento: "2022-03-15",
+    publicado: true,
+  },
+  {
+    id: "2",
+    nombre: "Max",
+    fotoUrl: "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop&crop=face",
+    especie: "Gato",
+    sexo: "Macho",
+    tamano: "Pequeño",
+    peso: "4 kg",
+    fechaNacimiento: "2021-08-22",
+    publicado: true,
+  },
+  {
+    id: "3",
+    nombre: "Rocky",
+    fotoUrl: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop&crop=face",
+    especie: "Perro",
+    sexo: "Macho",
+    tamano: "Grande",
+    peso: "25 kg",
+    fechaNacimiento: "2020-11-10",
+    publicado: false,
+  },
+  {
+    id: "4",
+    nombre: "Mittens",
+    fotoUrl: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop&crop=face",
+    especie: "Gato",
+    sexo: "Hembra",
+    tamano: "Pequeño",
+    peso: "3.5 kg",
+    fechaNacimiento: "2023-01-05",
+    publicado: true,
+  },
+  {
+    id: "5",
+    nombre: "Buddy",
+    fotoUrl: "https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=400&h=400&fit=crop&crop=face",
+    especie: "Perro",
+    sexo: "Macho",
+    tamano: "Mediano",
+    peso: "18 kg",
+    fechaNacimiento: "2021-05-12",
+    publicado: true,
+  },
 ]
 
 export type Animal = {
@@ -162,10 +163,18 @@ export const columns: ColumnDef<Animal>[] = [
     accessorKey: "fotoUrl",
     header: "Foto",
     cell: ({ row }) => (
-        <Avatar>
-            <AvatarImage src={row.original.fotoUrl} alt={row.original.nombre} />
-            <AvatarFallback>{row.original.nombre.substring(0, 2)}</AvatarFallback>
-        </Avatar>
+        <div className="flex items-center">
+            <Avatar className="h-12 w-12">
+                <AvatarImage 
+                    src={row.original.fotoUrl} 
+                    alt={row.original.nombre}
+                    className="object-cover"
+                />
+                <AvatarFallback className="text-sm font-medium">
+                    {row.original.nombre.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
+        </div>
     ),
   },
   {
@@ -425,8 +434,9 @@ function AnimalFormDialog({
     setIsOpen: (isOpen: boolean) => void
     animal: Animal | null
   }) {
-    const [formData, setFormData] = React.useState<Omit<Animal, 'id' | 'fotoUrl'>>({
+    const [formData, setFormData] = React.useState<Omit<Animal, 'id'>>({
         nombre: '',
+        fotoUrl: '',
         especie: '',
         sexo: 'Macho',
         tamano: '',
@@ -439,6 +449,7 @@ function AnimalFormDialog({
         if (animal) {
             setFormData({
                 nombre: animal.nombre,
+                fotoUrl: animal.fotoUrl,
                 especie: animal.especie,
                 sexo: animal.sexo,
                 tamano: animal.tamano,
@@ -450,6 +461,7 @@ function AnimalFormDialog({
             // Reset form for new animal
             setFormData({
                 nombre: '',
+                fotoUrl: '',
                 especie: '',
                 sexo: 'Macho',
                 tamano: '',
@@ -459,7 +471,6 @@ function AnimalFormDialog({
             })
         }
     }, [animal, isOpen])
-
 
     const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target
@@ -474,10 +485,13 @@ function AnimalFormDialog({
         setFormData(prev => ({ ...prev, [id]: checked }))
     }
 
+    const handleImageChange = (value: string) => {
+        setFormData(prev => ({ ...prev, fotoUrl: value }))
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>{animal ? 'Editar animal' : 'Añadir nuevo animal'}</DialogTitle>
                     <DialogDescription>
@@ -485,6 +499,17 @@ function AnimalFormDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                    {/* Image Upload */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-2">Foto</Label>
+                        <div className="col-span-3">
+                            <ImageUpload
+                                value={formData.fotoUrl}
+                                onChange={handleImageChange}
+                            />
+                        </div>
+                    </div>
+                    
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nombre" className="text-right">Nombre</Label>
                         <Input id="nombre" value={formData.nombre} onChange={handleValueChange} className="col-span-3" />
@@ -575,25 +600,35 @@ function AnimalDetailsDialog({
                 <DialogHeader>
                     <DialogTitle>Detalles de {animal.nombre}</DialogTitle>
                 </DialogHeader>
-                <div className="flex justify-center py-4">
-                    <Avatar className="h-40 w-40">
-                        <AvatarImage src={animal.fotoUrl} alt={animal.nombre} className="object-cover" />
-                        <AvatarFallback>{animal.nombre.substring(0, 2)}</AvatarFallback>
-                    </Avatar>
-                </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                    <p className="font-semibold text-right">Especie:</p>
-                    <p>{animal.especie}</p>
-                    <p className="font-semibold text-right">Sexo:</p>
-                    <p>{animal.sexo}</p>
-                    <p className="font-semibold text-right">Tamaño:</p>
-                    <p>{animal.tamano}</p>
-                    <p className="font-semibold text-right">Peso:</p>
-                    <p>{animal.peso}</p>
-                    <p className="font-semibold text-right">Fecha Nacimiento:</p>
-                    <p>{animal.fechaNacimiento}</p>
-                    <p className="font-semibold text-right">Publicado:</p>
-                    <p>{animal.publicado ? 'Sí' : 'No'}</p>
+                <div className="flex flex-col items-center py-4 space-y-4">
+                    <div className="relative">
+                        <Avatar className="h-32 w-32">
+                            <AvatarImage 
+                                src={animal.fotoUrl} 
+                                alt={animal.nombre} 
+                                className="object-cover"
+                            />
+                            <AvatarFallback className="text-2xl font-bold">
+                                {animal.nombre.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                    </div>
+                    <div className="w-full space-y-3">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <p className="font-semibold text-right text-muted-foreground">Especie:</p>
+                            <p className="font-medium">{animal.especie}</p>
+                            <p className="font-semibold text-right text-muted-foreground">Sexo:</p>
+                            <p className="font-medium">{animal.sexo}</p>
+                            <p className="font-semibold text-right text-muted-foreground">Tamaño:</p>
+                            <p className="font-medium">{animal.tamano}</p>
+                            <p className="font-semibold text-right text-muted-foreground">Peso:</p>
+                            <p className="font-medium">{animal.peso}</p>
+                            <p className="font-semibold text-right text-muted-foreground">Fecha Nacimiento:</p>
+                            <p className="font-medium">{new Date(animal.fechaNacimiento).toLocaleDateString('es-ES')}</p>
+                            <p className="font-semibold text-right text-muted-foreground">Publicado:</p>
+                            <p className="font-medium">{animal.publicado ? 'Sí' : 'No'}</p>
+                        </div>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={() => setIsOpen(false)}>Cerrar</Button>
