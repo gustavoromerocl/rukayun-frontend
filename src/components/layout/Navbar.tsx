@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { PawPrint, FacebookIcon, Instagram, Twitter, LogOut } from "lucide-react";
+import { PawPrint, LogOut } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 

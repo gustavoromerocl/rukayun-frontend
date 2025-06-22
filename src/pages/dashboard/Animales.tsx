@@ -34,7 +34,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
   } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -260,7 +259,7 @@ export const columns: ColumnDef<Animal>[] = [
 ]
 
 export default function AnimalesPage() {
-  const [data, setData] = React.useState(initialData)
+  const [data] = React.useState(initialData)
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []

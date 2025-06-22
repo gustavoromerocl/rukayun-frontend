@@ -38,14 +38,13 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-  } from "@/components/ui/dialog"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,14 +134,14 @@ export const columns: ColumnDef<Solicitud>[] = [
     accessorKey: "estado",
     header: "Estado",
     cell: ({ row }) => {
-        const estado = row.getValue("estado") as string
-        const variant = {
-            "Pendiente": "default",
-            "Aprobada": "secondary",
-            "Rechazada": "destructive",
-        }[estado] ?? "default" as "default" | "secondary" | "destructive"
+      const estado = row.getValue("estado") as string
+      const variant = {
+        "Pendiente": "default" as const,
+        "Aprobada": "secondary" as const,
+        "Rechazada": "destructive" as const,
+      }[estado] ?? "default"
 
-        return <Badge variant={variant}>{estado}</Badge>
+      return <Badge variant={variant}>{estado}</Badge>
     }
   },
   {
