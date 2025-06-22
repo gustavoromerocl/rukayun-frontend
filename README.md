@@ -29,6 +29,7 @@ Rukayun es una plataforma web moderna para la gestión de adopciones de animales
 - **Tema personalizado** con colores del refugio
 - **Iconografía consistente** con Lucide React
 - **Formularios intuitivos** con validación
+- **Animaciones suaves** y micro-interacciones
 
 ## 🏗️ Arquitectura del Proyecto
 
@@ -42,12 +43,14 @@ Rukayun es una plataforma web moderna para la gestión de adopciones de animales
 - **Charts**: Recharts
 - **Tables**: TanStack Table
 - **Icons**: Lucide React
+- **Deployment**: AWS Amplify
 
 ### Estructura de Carpetas
 
 ```
 rukayun-frontend/
 ├── public/                 # Archivos estáticos
+│   └── _redirects         # Configuración de SPA routing
 ├── src/
 │   ├── components/         # Componentes reutilizables
 │   │   ├── ui/            # Componentes de shadcn/ui
@@ -62,10 +65,10 @@ rukayun-frontend/
 │   ├── assets/           # Recursos estáticos
 │   ├── App.tsx           # Componente principal
 │   ├── main.tsx          # Punto de entrada
-│   └── index.css         # Estilos globales
+│   └── index.css         # Estilos globales y tema
 ├── package.json          # Dependencias y scripts
 ├── vite.config.ts        # Configuración de Vite
-├── tailwind.config.ts    # Configuración de Tailwind
+├── amplify.yml           # Configuración de AWS Amplify
 ├── tsconfig.json         # Configuración de TypeScript
 └── README.md            # Documentación
 ```
@@ -74,7 +77,7 @@ rukayun-frontend/
 
 ### Prerrequisitos
 
-- Node.js 18+
+- Node.js 20+ (requerido para React Router 7)
 - npm o yarn
 
 ### Pasos de Instalación
@@ -125,10 +128,11 @@ npm run lint         # Linting del código
 ### Gestión de Animales
 
 - **CRUD completo** con formularios validados
-- **Carga de imágenes** con drag & drop
-- **Tabla de datos** con filtros y paginación
+- **Carga de imágenes** con drag & drop y preview
+- **Tabla de datos** con filtros, ordenamiento y paginación
 - **Vista de detalles** con información completa
 - **Estados de publicación** (publicado/privado)
+- **Validación de archivos** (tipo y tamaño)
 
 ### Dashboard de Estadísticas
 
@@ -136,6 +140,15 @@ npm run lint         # Linting del código
 - **Gráficos interactivos** con Recharts
 - **Lista de adopciones recientes**
 - **Datos mock** para demostración
+- **Animaciones** en las tarjetas de estadísticas
+
+### Gestión de Solicitudes
+
+- **Tabla de solicitudes** con filtros
+- **Estados de solicitud** (Pendiente, Aprobada, Rechazada)
+- **Acciones de aprobación/rechazo**
+- **Diálogos de confirmación**
+- **Vista de detalles** de cada solicitud
 
 ### Formulario de Contacto
 
@@ -143,6 +156,7 @@ npm run lint         # Linting del código
 - **Campos requeridos** y opcionales
 - **Simulación de envío** con feedback
 - **Información de contacto** completa
+- **Diseño responsive** y accesible
 
 ## 🎨 Sistema de Diseño
 
@@ -152,6 +166,7 @@ npm run lint         # Linting del código
 - **Secundario**: Verde (#38a169)
 - **Acentos**: Naranja (#ed8936)
 - **Neutros**: Escala de grises personalizada
+- **Modo oscuro**: Paleta completa optimizada
 
 ### Componentes UI
 
@@ -159,15 +174,24 @@ npm run lint         # Linting del código
 - **Tailwind CSS** para estilos personalizados
 - **Lucide React** para iconografía
 - **Diseño responsive** con breakpoints estándar
+- **Tema personalizado** con variables CSS
 
 ## 🔧 Configuración de Desarrollo
 
 ### Variables de Entorno
 
+Actualmente el proyecto no requiere variables de entorno ya que utiliza datos mock. Para futuras integraciones con backend:
+
 ```env
 VITE_API_URL=http://localhost:3000
 VITE_APP_NAME=Rukayun
 ```
+
+### Configuración de TypeScript
+
+- **Configuración estricta** habilitada
+- **Linting automático** en build
+- **Tipos estrictos** para todos los componentes
 
 ## 🚀 Despliegue
 
@@ -177,17 +201,53 @@ VITE_APP_NAME=Rukayun
 npm run build
 ```
 
-### Servidor de Producción
+### Despliegue en AWS Amplify
 
-```bash
-npm run preview
-```
+El proyecto está configurado para despliegue automático en AWS Amplify:
 
-### Plataformas Recomendadas
+1. **Configuración de build** (`amplify.yml`):
 
-- **Vercel**: Despliegue automático desde GitHub
-- **Netlify**: Despliegue con funciones serverless
-- **Railway**: Despliegue con base de datos incluida
+   - Node.js 20 para compatibilidad con React Router 7
+   - Build optimizado con Vite
+   - Cache de dependencias
+
+2. **Configuración de SPA** (`public/_redirects`):
+
+   - Redirección de rutas para React Router
+   - Manejo correcto de rutas del dashboard
+
+3. **Optimizaciones**:
+   - Build optimizado para producción
+   - Compresión de assets
+   - Cache de navegador
+
+### Pasos para Despliegue
+
+1. **Conectar repositorio** en AWS Amplify Console
+2. **Configurar build settings** (ya incluidos en `amplify.yml`)
+3. **Desplegar** automáticamente desde la rama main
+4. **Configurar dominio personalizado** (opcional)
+
+### Estado Actual del Despliegue
+
+✅ **Build local exitoso** - Todos los errores de TypeScript resueltos
+✅ **Configuración de Amplify** - Lista para despliegue
+✅ **Optimizaciones aplicadas** - Build optimizado para producción
+
+## 🐛 Solución de Problemas
+
+### Errores Comunes
+
+1. **Node.js version**: Requiere Node.js 20+ para React Router 7
+2. **Dependencias**: Ejecutar `npm install` después de clonar
+3. **Build errors**: Verificar que todos los imports estén correctos
+
+### Correcciones Recientes
+
+- ✅ Removidos imports no utilizados
+- ✅ Corregidos errores de tipos en componentes
+- ✅ Actualizada configuración de Node.js en Amplify
+- ✅ Removida dependencia `tw-animate-css` no existente
 
 ## 🤝 Contribución
 
@@ -201,21 +261,20 @@ npm run preview
 
 ### Estándares de Código
 
-- **TypeScript** estricto
-- **ESLint** para linting
-- **Prettier** para formateo
-- **Conventional Commits** para mensajes
+- **TypeScript estricto** para todos los archivos
+- **Componentes funcionales** con hooks
+- **shadcn/ui** para componentes de UI
+- **Tailwind CSS** para estilos
+- **Zustand** para estado global
 
 ## 📄 Licencia
 
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
 ## 👥 Equipo
 
-- **Desarrollador Frontend**: Gustavo Romero
-- **Desarrollador Backend**: Simón Salinas
-- **Product Owner**: Alonso Castillo
+Desarrollado como proyecto académico para la gestión de refugios de animales.
 
-## 📞 Contacto
+---
 
-- **Email**: info@rukayun.org
-- **Website**: https://rukayun.org
-- **GitHub**: https://github.com/rukayun
+**Rukayun** - Conectando corazones, salvando vidas 🐾
