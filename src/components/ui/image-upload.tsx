@@ -1,7 +1,7 @@
 import * as React from "react"
-import { Upload, X, Image as ImageIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Upload, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface ImageUploadProps {
   value?: string

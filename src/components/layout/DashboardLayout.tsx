@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { PawPrint, Home, Users, FileText, User, ClipboardList, Settings, LogOut } from "lucide-react";
+import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
 const navItems = [
