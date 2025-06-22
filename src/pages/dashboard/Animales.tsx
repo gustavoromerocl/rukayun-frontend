@@ -69,47 +69,57 @@ const initialData: Animal[] = [
     {
         id: "m5gr84i9",
         nombre: "Max",
-        fotoUrl: "https://placekitten.com/g/200/200",
+        fotoUrl: "https://placedog.net/500/500?id=1",
         especie: "Perro",
-        raza: "Golden Retriever",
-        edad: "2 años",
-        estado: "Disponible",
+        sexo: "Macho",
+        tamano: "Grande",
+        peso: "28.5 kg",
+        fechaNacimiento: "2022-01-15",
+        publicado: true,
       },
       {
         id: "3u1reuv4",
         nombre: "Luna",
-        fotoUrl: "https://placekitten.com/g/200/201",
+        fotoUrl: "https://placedog.net/500/500?id=2",
         especie: "Gato",
-        raza: "Siamés",
-        edad: "1 año",
-        estado: "En proceso",
+        sexo: "Hembra",
+        tamano: "Pequeño",
+        peso: "4.2 kg",
+        fechaNacimiento: "2023-03-20",
+        publicado: true,
       },
       {
         id: "derv1ws0",
         nombre: "Rocky",
-        fotoUrl: "https://placekitten.com/g/201/200",
+        fotoUrl: "https://placedog.net/500/500?id=3",
         especie: "Perro",
-        raza: "Pastor Alemán",
-        edad: "3 años",
-        estado: "Adoptado",
+        sexo: "Macho",
+        tamano: "Mediano",
+        peso: "22 kg",
+        fechaNacimiento: "2021-07-10",
+        publicado: false,
       },
       {
         id: "5kma53ae",
         nombre: "Bella",
-        fotoUrl: "https://placekitten.com/g/200/202",
+        fotoUrl: "https://placedog.net/500/500?id=4",
         especie: "Perro",
-        raza: "Beagle",
-        edad: "6 meses",
-        estado: "Disponible",
+        sexo: "Hembra",
+        tamano: "Pequeño",
+        peso: "8 kg",
+        fechaNacimiento: "2023-11-01",
+        publicado: true,
       },
       {
         id: "bhqecj4p",
         nombre: "Charlie",
-        fotoUrl: "https://placekitten.com/g/202/200",
+        fotoUrl: "https://placedog.net/500/500?id=5",
         especie: "Gato",
-        raza: "Persa",
-        edad: "4 años",
-        estado: "Disponible",
+        sexo: "Macho",
+        tamano: "Mediano",
+        peso: "5.5 kg",
+        fechaNacimiento: "2020-05-25",
+        publicado: true,
       },
 ]
 
@@ -118,9 +128,11 @@ export type Animal = {
   nombre: string
   fotoUrl: string
   especie: string
-  raza: string
-  edad: string
-  estado: "Disponible" | "En proceso" | "Adoptado"
+  sexo: "Macho" | "Hembra"
+  tamano: string
+  peso: string
+  fechaNacimiento: string
+  publicado: boolean
 }
 
 export const columns: ColumnDef<Animal>[] = [
@@ -165,16 +177,25 @@ export const columns: ColumnDef<Animal>[] = [
     header: "Especie",
   },
   {
-    accessorKey: "raza",
-    header: "Raza",
+    accessorKey: "sexo",
+    header: "Sexo",
   },
   {
-    accessorKey: "edad",
-    header: "Edad",
+    accessorKey: "tamano",
+    header: "Tamaño",
   },
   {
-    accessorKey: "estado",
-    header: "Estado",
+    accessorKey: "peso",
+    header: "Peso",
+  },
+  {
+    accessorKey: "fechaNacimiento",
+    header: "Nacimiento",
+  },
+  {
+    accessorKey: "publicado",
+    header: "Publicado",
+    cell: ({ row }) => (row.original.publicado ? "Sí" : "No"),
   },
   {
     id: "actions",
@@ -407,9 +428,11 @@ function AnimalFormDialog({
     const [formData, setFormData] = React.useState<Omit<Animal, 'id' | 'fotoUrl'>>({
         nombre: '',
         especie: '',
-        raza: '',
-        edad: '',
-        estado: 'Disponible',
+        sexo: 'Macho',
+        tamano: '',
+        peso: '',
+        fechaNacimiento: '',
+        publicado: true,
     })
 
     React.useEffect(() => {
@@ -417,30 +440,38 @@ function AnimalFormDialog({
             setFormData({
                 nombre: animal.nombre,
                 especie: animal.especie,
-                raza: animal.raza,
-                edad: animal.edad,
-                estado: animal.estado,
+                sexo: animal.sexo,
+                tamano: animal.tamano,
+                peso: animal.peso,
+                fechaNacimiento: animal.fechaNacimiento,
+                publicado: animal.publicado,
             })
         } else {
             // Reset form for new animal
             setFormData({
                 nombre: '',
                 especie: '',
-                raza: '',
-                edad: '',
-                estado: 'Disponible',
+                sexo: 'Macho',
+                tamano: '',
+                peso: '',
+                fechaNacimiento: '',
+                publicado: true,
             })
         }
     }, [animal, isOpen])
 
 
     const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { id, value } = e.target
+        const { id, value, type, checked } = e.target
+        setFormData(prev => ({ ...prev, [id]: type === 'checkbox' ? checked : value }))
+    }
+
+    const handleSelectChange = (id: string) => (value: string) => {
         setFormData(prev => ({ ...prev, [id]: value }))
     }
 
-    const handleSelectChange = (value: Animal['estado']) => {
-        setFormData(prev => ({ ...prev, estado: value }))
+    const handleCheckedChange = (id: string) => (checked: boolean) => {
+        setFormData(prev => ({ ...prev, [id]: checked }))
     }
 
 
@@ -463,25 +494,32 @@ function AnimalFormDialog({
                         <Input id="especie" value={formData.especie} onChange={handleValueChange} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="raza" className="text-right">Raza</Label>
-                        <Input id="raza" value={formData.raza} onChange={handleValueChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edad" className="text-right">Edad</Label>
-                        <Input id="edad" value={formData.edad} onChange={handleValueChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="estado" className="text-right">Estado</Label>
-                        <Select value={formData.estado} onValueChange={handleSelectChange}>
+                        <Label htmlFor="sexo" className="text-right">Sexo</Label>
+                        <Select value={formData.sexo} onValueChange={handleSelectChange('sexo')}>
                             <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Selecciona un estado" />
+                                <SelectValue placeholder="Selecciona el sexo" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Disponible">Disponible</SelectItem>
-                                <SelectItem value="En proceso">En proceso</SelectItem>
-                                <SelectItem value="Adoptado">Adoptado</SelectItem>
+                                <SelectItem value="Macho">Macho</SelectItem>
+                                <SelectItem value="Hembra">Hembra</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="tamano" className="text-right">Tamaño</Label>
+                        <Input id="tamano" value={formData.tamano} onChange={handleValueChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="peso" className="text-right">Peso</Label>
+                        <Input id="peso" value={formData.peso} onChange={handleValueChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="fechaNacimiento" className="text-right">Fecha Nacimiento</Label>
+                        <Input id="fechaNacimiento" type="date" value={formData.fechaNacimiento} onChange={handleValueChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="publicado" className="text-right">Publicado</Label>
+                        <Checkbox id="publicado" checked={formData.publicado} onCheckedChange={handleCheckedChange('publicado')} />
                     </div>
                 </div>
                 <DialogFooter>
@@ -546,12 +584,16 @@ function AnimalDetailsDialog({
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                     <p className="font-semibold text-right">Especie:</p>
                     <p>{animal.especie}</p>
-                    <p className="font-semibold text-right">Raza:</p>
-                    <p>{animal.raza}</p>
-                    <p className="font-semibold text-right">Edad:</p>
-                    <p>{animal.edad}</p>
-                    <p className="font-semibold text-right">Estado:</p>
-                    <p>{animal.estado}</p>
+                    <p className="font-semibold text-right">Sexo:</p>
+                    <p>{animal.sexo}</p>
+                    <p className="font-semibold text-right">Tamaño:</p>
+                    <p>{animal.tamano}</p>
+                    <p className="font-semibold text-right">Peso:</p>
+                    <p>{animal.peso}</p>
+                    <p className="font-semibold text-right">Fecha Nacimiento:</p>
+                    <p>{animal.fechaNacimiento}</p>
+                    <p className="font-semibold text-right">Publicado:</p>
+                    <p>{animal.publicado ? 'Sí' : 'No'}</p>
                 </div>
                 <DialogFooter>
                     <Button onClick={() => setIsOpen(false)}>Cerrar</Button>
