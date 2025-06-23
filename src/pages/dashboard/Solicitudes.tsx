@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, Phone, Home, User, PawPrint } from "lucide-react"
+import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, Phone, Home, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -55,7 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 const data: Solicitud[] = [
@@ -429,7 +429,11 @@ export default function SolicitudesPage() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <Badge variant={{ "Pendiente": "default", "Aprobada": "secondary", "Rechazada": "destructive" }[estado] ?? "default"}>
+                      <Badge variant={
+                        estado === "Pendiente" ? "default" :
+                        estado === "Aprobada" ? "secondary" :
+                        estado === "Rechazada" ? "destructive" : "default"
+                      }>
                         {estado}
                       </Badge>
                       {actionsCell && flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
@@ -493,7 +497,7 @@ function SolicitudDetailsDialog({
 
     if (!solicitud) return null
 
-    const { animal, solicitante, fechaSolicitud, estado, respuestas } = solicitud
+    const { animal, solicitante, fechaSolicitud, respuestas } = solicitud
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>

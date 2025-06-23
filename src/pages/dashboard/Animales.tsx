@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Plus, Search, Filter, PawPrint, Eye, Edit, Trash2, Columns } from "lucide-react"
+import { MoreHorizontal, Plus, Search, PawPrint, Eye, Edit, Trash2, Columns } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
