@@ -1,4 +1,4 @@
-import { Activity, Heart, Users, PawPrint, TrendingUp, Calendar, AlertCircle, CheckCircle } from "lucide-react"
+import { Heart, Users, PawPrint, TrendingUp, Calendar, AlertCircle, CheckCircle } from "lucide-react"
 import {
   Avatar,
   AvatarFallback,

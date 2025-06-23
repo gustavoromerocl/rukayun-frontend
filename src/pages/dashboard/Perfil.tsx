@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -17,9 +16,6 @@ import { useAppStore } from "@/lib/store"
 import { 
   User, 
   Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
   Shield, 
   Activity,
   Edit3,
