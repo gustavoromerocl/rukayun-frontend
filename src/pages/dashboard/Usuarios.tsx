@@ -157,7 +157,7 @@ export default function UsuariosOrgPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2"><Users className="w-6 h-6" />Usuarios de la organización</h2>
           <p className="text-muted-foreground">Administra los usuarios que pertenecen a tu organización.</p>
