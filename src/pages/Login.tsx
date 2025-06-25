@@ -13,6 +13,7 @@ export default function Login() {
       id: "12345",
       name: "Usuario de Prueba",
       email: "test.user@microsoft.com",
+      role: "admin", // Siempre admin por defecto
     };
 
     // 2. Update the global state

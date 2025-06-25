@@ -4,6 +4,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role: string; // 'admin' | 'voluntario' | ...
 }
 
 interface AppState {

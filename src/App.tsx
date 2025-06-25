@@ -13,6 +13,7 @@ import Solicitudes from "@/pages/dashboard/Solicitudes";
 import Seguimiento from "@/pages/dashboard/Seguimiento";
 import Perfil from "@/pages/dashboard/Perfil";
 import Configuracion from "@/pages/dashboard/Configuracion";
+import Usuarios from "@/pages/dashboard/Usuarios";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="seguimiento" element={<Seguimiento />} />
           <Route path="perfil" element={<Perfil />} />
           <Route path="configuracion" element={<Configuracion />} />
+          <Route path="usuarios" element={<Usuarios />} />
         </Route>
       </Routes>
     </BrowserRouter>

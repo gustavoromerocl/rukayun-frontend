@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, X } from "lucide-react";
+import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, X, Users } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useState } from "react";
 
@@ -16,6 +16,7 @@ export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const setUser = useAppStore((state) => state.setUser);
+  const user = useAppStore((state) => state.user);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
@@ -76,6 +77,23 @@ export function DashboardLayout() {
               {label}
             </Link>
           ))}
+          {/* Solo para administradores */}
+          {user?.role === 'admin' && (
+            <Link
+              to="/dashboard/usuarios"
+              onClick={closeSidebar}
+              className={`
+                flex items-center gap-3 px-3 py-3 rounded-lg font-medium transition-all duration-200
+                ${location.pathname === "/dashboard/usuarios" 
+                  ? "bg-primary/10 text-primary border border-primary/20" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }
+              `}
+            >
+              <Users className="w-5 h-5" />
+              Usuarios
+            </Link>
+          )}
         </nav>
 
         {/* Logout */}
