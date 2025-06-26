@@ -5,7 +5,10 @@ export interface User {
   name: string;
   email: string;
   role?: string; // Puede venir del backend o de claims
-  [key: string]: any; // Para permitir datos extra
+  phone?: string;
+  address?: string;
+  bio?: string;
+  birthDate?: string;
 }
 
 interface AppState {
