@@ -115,13 +115,13 @@ export function DashboardLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-0 transition-all duration-300 ease-in-out">
         {/* Header */}
-        <header className="h-16 bg-background border-b flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <header className="h-16 bg-background border-b flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-all duration-300 ease-in-out">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-md hover:bg-muted"
+              className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors duration-200"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -132,7 +132,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto transition-all duration-300 ease-in-out">
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

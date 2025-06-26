@@ -4,7 +4,6 @@ import Home from "@/pages/Home";
 import Animals from "@/pages/Animals";
 import Education from "@/pages/Education";
 import Contact from "@/pages/Contact";
-import Login from "@/pages/Login";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 // Dashboard pages
 import Overview from "@/pages/dashboard/Overview";
@@ -26,7 +25,6 @@ function App() {
           <Route path="animales" element={<Animals />} />
           <Route path="educacion" element={<Education />} />
           <Route path="contacto" element={<Contact />} />
-          <Route path="login" element={<Login />} />
         </Route>
         {/* Dashboard layout protegido */}
         <Route path="/dashboard" element={

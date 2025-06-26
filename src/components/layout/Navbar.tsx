@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { PawPrint, LogOut, Menu, X } from "lucide-react";
+import { PawPrint, LogOut, Menu, X, Loader2 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -9,12 +9,25 @@ export function Navbar() {
   const { instance, accounts } = useMsal();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogout = () => {
     instance.logoutPopup().then(() => {
       navigate("/");
       setIsMenuOpen(false);
     });
+  };
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await instance.loginPopup();
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error durante el login:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // Obtener información del usuario desde MSAL
@@ -59,9 +72,16 @@ export function Navbar() {
                 </Button>
               </>
             ) : (
-              <Link to="/login">
-                <Button>Login</Button>
-              </Link>
+              <Button onClick={handleLogin} disabled={isLoggingIn}>
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </Button>
             )}
           </div>
 
@@ -127,13 +147,23 @@ export function Navbar() {
                 </button>
               </>
             ) : (
-              <Link 
-                to="/login" 
+              <button 
+                onClick={() => {
+                  handleLogin();
+                  setIsMenuOpen(false);
+                }}
+                disabled={isLoggingIn}
                 className={mobileLinkClassName}
-                onClick={() => setIsMenuOpen(false)}
               >
-                Login
-              </Link>
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </button>
             )}
           </div>
         </div>
