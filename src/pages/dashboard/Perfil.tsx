@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAppStore } from "@/lib/store"
+import { useMsal } from "@azure/msal-react"
 import { 
   User, 
   Mail, 
@@ -25,21 +26,51 @@ import {
 } from "lucide-react"
 
 export default function PerfilPage() {
-  const { user, setUser } = useAppStore()
+  const { user: storeUser, setUser } = useAppStore()
+  const { accounts } = useMsal()
   const [isEditing, setIsEditing] = useState(false)
+  
+  // Obtener datos del usuario desde MSAL
+  const msalUser = accounts[0]
+  
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+    name: "",
+    email: "",
     phone: "+593 99 123 4567",
     address: "Quito, Ecuador",
     bio: "Amante de los animales y voluntario en adopciones. Me encanta ayudar a encontrar hogares para mascotas necesitadas.",
     birthDate: "1995-03-15"
   })
 
+  // Inicializar datos del formulario con datos de MSAL o del store
+  useEffect(() => {
+    if (msalUser) {
+      const msalName = msalUser.name || msalUser.username || ""
+      const msalEmail = msalUser.username || ""
+      
+      setFormData(prev => ({
+        ...prev,
+        name: storeUser?.name || msalName,
+        email: storeUser?.email || msalEmail
+      }))
+      
+      // Si no hay usuario en el store, crear uno basado en MSAL
+      if (!storeUser) {
+        const userRole = msalUser.idTokenClaims?.extension_Role || msalUser.idTokenClaims?.role || 'user';
+        setUser({
+          id: String(msalUser.localAccountId || msalUser.homeAccountId || msalUser.username || ""),
+          name: msalName,
+          email: msalEmail,
+          role: typeof userRole === 'string' ? userRole : 'user'
+        })
+      }
+    }
+  }, [msalUser, storeUser, setUser])
+
   const handleSave = () => {
-    if (user) {
+    if (storeUser) {
       setUser({
-        ...user,
+        ...storeUser,
         name: formData.name
       })
     }
@@ -47,18 +78,16 @@ export default function PerfilPage() {
   }
 
   const handleCancel = () => {
-    setFormData({
-      name: user?.name || "",
-      email: user?.email || "",
-      phone: "+593 99 123 4567",
-      address: "Quito, Ecuador",
-      bio: "Amante de los animales y voluntario en adopciones. Me encanta ayudar a encontrar hogares para mascotas necesitadas.",
-      birthDate: "1995-03-15"
-    })
+    setFormData(prev => ({
+      ...prev,
+      name: storeUser?.name || msalUser?.name || msalUser?.username || "",
+      email: storeUser?.email || msalUser?.username || ""
+    }))
     setIsEditing(false)
   }
 
   const getInitials = (name: string) => {
+    if (!name || typeof name !== 'string') return "U";
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
 
@@ -240,9 +269,9 @@ export default function PerfilPage() {
               <div className="flex flex-col items-center space-y-4">
                 <div className="relative">
                   <Avatar className="w-24 h-24">
-                    <AvatarImage src="" alt={user?.name} />
+                    <AvatarImage src="" alt={storeUser?.name || "Usuario"} />
                     <AvatarFallback className="text-2xl">
-                      {getInitials(user?.name || "U")}
+                      {getInitials(storeUser?.name || "Usuario")}
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && (
@@ -256,7 +285,7 @@ export default function PerfilPage() {
                   )}
                 </div>
                 <div className="text-center">
-                  <h3 className="font-semibold text-lg">{user?.name}</h3>
+                  <h3 className="font-semibold text-lg">{storeUser?.name}</h3>
                   <p className="text-sm text-muted-foreground">Miembro desde 2023</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 w-full">

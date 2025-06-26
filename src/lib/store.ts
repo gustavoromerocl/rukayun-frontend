@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export interface User {
   id: string;
@@ -12,24 +11,9 @@ export interface User {
 interface AppState {
   user: User | null;
   setUser: (user: User | null) => void;
-  hasHydrated: boolean;
-  setHasHydrated: (hydrated: boolean) => void;
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      setUser: (user) => set({ user }),
-      hasHydrated: false,
-      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
-    }),
-    {
-      name: "rukayun-user", // clave en localStorage
-      partialize: (state) => ({ user: state.user }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated?.(true);
-      },
-    }
-  )
-); 
+export const useAppStore = create<AppState>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+})); 

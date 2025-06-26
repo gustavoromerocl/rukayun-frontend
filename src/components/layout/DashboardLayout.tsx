@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, X, Users } from "lucide-react";
-import { useAppStore } from "@/lib/store";
+import { useMsal } from "@azure/msal-react";
 import { useState } from "react";
 
 const navItems = [
@@ -15,14 +15,19 @@ const navItems = [
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const setUser = useAppStore((state) => state.setUser);
-  const user = useAppStore((state) => state.user);
+  const { instance, accounts } = useMsal();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
-    setUser(null);
-    navigate("/");
+    instance.logoutPopup().then(() => {
+      navigate("/");
+    });
   };
+
+  // Obtener información del usuario desde MSAL
+  const user = accounts[0];
+  // Obtener el rol desde los claims de MSAL (si está disponible)
+  const userRole = user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
@@ -78,7 +83,7 @@ export function DashboardLayout() {
             </Link>
           ))}
           {/* Solo para administradores */}
-          {user?.role === 'admin' && (
+          {userRole === 'admin' && (
             <Link
               to="/dashboard/usuarios"
               onClick={closeSidebar}
