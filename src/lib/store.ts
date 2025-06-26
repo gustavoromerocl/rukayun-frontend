@@ -1,9 +1,14 @@
 import { create } from "zustand";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
+  role?: string; // Puede venir del backend o de claims
+  phone?: string;
+  address?: string;
+  bio?: string;
+  birthDate?: string;
 }
 
 interface AppState {

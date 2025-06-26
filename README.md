@@ -120,10 +120,12 @@ npm run lint         # Linting del código
 
 ### Sistema de Autenticación
 
-- **Login simulado** con Microsoft provider
-- **Persistencia de sesión** en localStorage
-- **Protección de rutas** del dashboard
-- **Logout funcional** con limpieza de estado
+- **Autenticación real** con Azure AD B2C usando MSAL
+- **Login con Microsoft** mediante popup (sin recarga de página)
+- **Gestión de sesión** automática por MSAL
+- **Protección de rutas** del dashboard con RequireAuth
+- **Logout funcional** con limpieza de sesión de MSAL
+- **Roles de usuario** obtenidos desde claims de Azure AD B2C
 
 ### Gestión de Animales
 

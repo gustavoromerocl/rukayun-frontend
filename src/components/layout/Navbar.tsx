@@ -1,20 +1,38 @@
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { PawPrint, LogOut, Menu, X } from "lucide-react";
-import { useAppStore } from "@/lib/store";
+import { PawPrint, LogOut, Menu, X, Loader2 } from "lucide-react";
+import { useMsal } from "@azure/msal-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 export function Navbar() {
-  const { user, setUser } = useAppStore();
+  const { instance, accounts } = useMsal();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogout = () => {
-    setUser(null);
-    navigate("/");
-    setIsMenuOpen(false);
+    instance.logoutPopup().then(() => {
+      navigate("/");
+      setIsMenuOpen(false);
+    });
   };
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await instance.loginPopup();
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error durante el login:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Obtener información del usuario desde MSAL
+  const user = accounts[0];
+  const userName = user?.name || user?.username || "Usuario";
 
   const linkClassName = cn(
     "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -48,15 +66,22 @@ export function Navbar() {
 
             {user ? (
               <>
-                <span className="font-medium text-sm px-3">Hola, {user.name.split(' ')[0]}</span>
+                <span className="font-medium text-sm px-3">Hola, {userName.split(' ')[0]}</span>
                 <Button onClick={handleLogout} variant="ghost" size="icon">
                   <LogOut className="h-5 w-5" />
                 </Button>
               </>
             ) : (
-              <Link to="/login">
-                <Button>Login</Button>
-              </Link>
+              <Button onClick={handleLogin} disabled={isLoggingIn}>
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </Button>
             )}
           </div>
 
@@ -112,7 +137,7 @@ export function Navbar() {
             {user ? (
               <>
                 <div className="px-4 py-3 text-sm font-medium text-muted-foreground">
-                  Hola, {user.name.split(' ')[0]}
+                  Hola, {userName.split(' ')[0]}
                 </div>
                 <button 
                   onClick={handleLogout}
@@ -122,13 +147,23 @@ export function Navbar() {
                 </button>
               </>
             ) : (
-              <Link 
-                to="/login" 
+              <button 
+                onClick={() => {
+                  handleLogin();
+                  setIsMenuOpen(false);
+                }}
+                disabled={isLoggingIn}
                 className={mobileLinkClassName}
-                onClick={() => setIsMenuOpen(false)}
               >
-                Login
-              </Link>
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </button>
             )}
           </div>
         </div>
