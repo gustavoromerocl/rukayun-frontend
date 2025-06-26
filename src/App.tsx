@@ -14,6 +14,7 @@ import Seguimiento from "@/pages/dashboard/Seguimiento";
 import Perfil from "@/pages/dashboard/Perfil";
 import Configuracion from "@/pages/dashboard/Configuracion";
 import Usuarios from "@/pages/dashboard/Usuarios";
+import { RequireAuth } from "@/components/RequireAuth";
 
 function App() {
   return (
@@ -27,8 +28,12 @@ function App() {
           <Route path="contacto" element={<Contact />} />
           <Route path="login" element={<Login />} />
         </Route>
-        {/* Dashboard layout */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        {/* Dashboard layout protegido */}
+        <Route path="/dashboard" element={
+          <RequireAuth>
+            <DashboardLayout />
+          </RequireAuth>
+        }>
           <Route index element={<Overview />} />
           <Route path="animales" element={<Animales />} />
           <Route path="solicitudes" element={<Solicitudes />} />
