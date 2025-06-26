@@ -1,26 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/lib/store";
-import { useNavigate } from "react-router-dom";
+import { useMsal } from "@azure/msal-react";
 import { LogIn } from "lucide-react";
 
 export default function Login() {
-  const setUser = useAppStore((state) => state.setUser);
-  const navigate = useNavigate();
+  const { instance } = useMsal();
 
   const handleLogin = () => {
-    // 1. Simulate a successful login from Microsoft IaaS
-    const mockUser = {
-      id: "12345",
-      name: "Usuario de Prueba",
-      email: "test.user@microsoft.com",
-      role: "admin", // Siempre admin por defecto
-    };
-
-    // 2. Update the global state
-    setUser(mockUser);
-
-    // 3. Redirect to the dashboard
-    navigate("/dashboard");
+    instance.loginPopup().then(() => {
+      window.location.href = "/dashboard";
+    });
   };
 
   return (
