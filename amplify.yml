@@ -5,9 +5,10 @@ frontend:
       commands:
         - nvm use 20
         - npm ci
+        - chmod +x scripts/build.sh
     build:
       commands:
-        - npm run build
+        - ./scripts/build.sh
   artifacts:
     baseDirectory: dist
     files:
