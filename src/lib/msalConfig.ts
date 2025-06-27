@@ -5,6 +5,6 @@ export const msalConfig: Configuration = {
     clientId: "ce14b156-1e4a-4e31-bdc0-6b61de980f95", // Tu Application (client) ID
     authority: "https://accessmanagercloudnative1.b2clogin.com/accessmanagercloudnative1.onmicrosoft.com/B2C_1_singinsignup_rukayun",
     knownAuthorities: ["accessmanagercloudnative1.b2clogin.com"],
-    redirectUri: "http://localhost:5173/dashboard", // O tu URL de producción
+    redirectUri: `${import.meta.env.VITE_APP_HOST || 'http://localhost:5173'}/dashboard`, // URL desde variable de entorno
   },
 };
