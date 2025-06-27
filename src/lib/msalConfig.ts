@@ -10,9 +10,11 @@ const getBaseUrl = () => {
   return import.meta.env.VITE_APP_HOST || 'http://localhost:5173';
 };
 
-const redirectUri = `${getBaseUrl()}/dashboard`;
+const baseUrl = getBaseUrl();
+const redirectUri = `${baseUrl}/dashboard`;
 
 // Debug temporal para ver qué URL se está usando
+console.log('MSAL Config - Base URL:', baseUrl);
 console.log('MSAL Config - Redirect URI:', redirectUri);
 console.log('MSAL Config - VITE_APP_HOST:', import.meta.env.VITE_APP_HOST);
 console.log('MSAL Config - Window location:', typeof window !== 'undefined' ? window.location.origin : 'SSR');
@@ -23,5 +25,11 @@ export const msalConfig: Configuration = {
     authority: "https://accessmanagercloudnative1.b2clogin.com/accessmanagercloudnative1.onmicrosoft.com/B2C_1_singinsignup_rukayun",
     knownAuthorities: ["accessmanagercloudnative1.b2clogin.com"],
     redirectUri: redirectUri,
+    postLogoutRedirectUri: baseUrl,
+    navigateToLoginRequestUrl: false, // Evitar redirección automática
+  },
+  cache: {
+    cacheLocation: "sessionStorage", // Usar sessionStorage en lugar de localStorage
+    storeAuthStateInCookie: false, // No usar cookies para el estado de auth
   },
 };
