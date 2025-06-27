@@ -182,11 +182,28 @@ npm run lint         # Linting del código
 
 ### Variables de Entorno
 
-Actualmente el proyecto no requiere variables de entorno ya que utiliza datos mock. Para futuras integraciones con backend:
+El proyecto requiere las siguientes variables de entorno para funcionar correctamente:
 
 ```env
+# Host de la aplicación (requerido para MSAL)
+VITE_APP_HOST=http://localhost:5173
+
+# Para futuras integraciones con backend
 VITE_API_URL=http://localhost:3000
 VITE_APP_NAME=Rukayun
+```
+
+**Configuración de MSAL:**
+
+- `VITE_APP_HOST`: Define la URL base de la aplicación para el redirectUri de MSAL
+- En desarrollo: `http://localhost:5173`
+- En producción: `https://tu-dominio.com`
+
+**Crear archivo .env:**
+
+```bash
+cp .env.example .env
+# Editar .env con los valores correctos para tu entorno
 ```
 
 ### Configuración de TypeScript
