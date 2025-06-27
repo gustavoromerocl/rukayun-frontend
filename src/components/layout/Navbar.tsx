@@ -21,7 +21,15 @@ export function Navbar() {
   const handleLogin = async () => {
     setIsLoggingIn(true);
     try {
-      await instance.loginPopup();
+      const loginRequest = {
+        scopes: ["openid", "profile", "email"],
+        prompt: "select_account",
+      };
+      
+      const response = await instance.loginPopup(loginRequest);
+      console.log('Login response:', response);
+      
+      // Navegar manualmente después del login exitoso
       navigate("/dashboard");
     } catch (error) {
       console.error("Error durante el login:", error);
