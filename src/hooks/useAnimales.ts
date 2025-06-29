@@ -123,17 +123,22 @@ export function useAnimales() {
 
   // Eliminar un animal
   const deleteAnimal = useCallback(async (id: number) => {
+    console.log('🗑️ Eliminando animal con ID:', id);
     setLoading(true);
     setError(null);
     try {
+      console.log('📡 Llamando a animalesService.deleteAnimal...');
       await animalesService.deleteAnimal(id);
-      setAnimales(prev => prev.filter(animal => animal.animalId !== id));
+      console.log('✅ Animal eliminado exitosamente');
+      // No actualizar el estado local aquí, dejar que fetchAnimales lo haga
+      // para evitar inconsistencias
     } catch (err) {
+      console.error('❌ Error deleting animal:', err);
       setError(err instanceof Error ? err.message : 'Error al eliminar el animal');
-      console.error('Error deleting animal:', err);
       throw err;
     } finally {
       setLoading(false);
+      console.log('🏁 deleteAnimal completado');
     }
   }, [animalesService]);
 

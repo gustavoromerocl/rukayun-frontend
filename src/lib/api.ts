@@ -87,7 +87,19 @@ class ApiClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return response.json();
+      // Si la respuesta es 204 No Content, no intentar parsear JSON
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      // Verificar si hay contenido en la respuesta antes de intentar parsear JSON
+      const responseText = await response.text();
+      if (responseText.trim()) {
+        return JSON.parse(responseText);
+      }
+      
+      // Si no hay contenido, retornar un objeto vacío
+      return {} as T;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;

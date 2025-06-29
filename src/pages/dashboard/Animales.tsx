@@ -310,11 +310,31 @@ export default function AnimalesPage() {
   const handleConfirmDelete = async () => {
     if (selectedAnimal) {
       try {
+        console.log('🗑️ Confirmando eliminación de animal:', selectedAnimal.animalId);
         await deleteAnimal(selectedAnimal.animalId)
+        
+        // Cerrar el diálogo de confirmación
         setIsDeleteOpen(false)
         setSelectedAnimal(null)
+        
+        // Mostrar mensaje de éxito
+        toast.success(`Animal "${selectedAnimal.nombre}" eliminado exitosamente`)
+        
+        // Refrescar la tabla después de un pequeño delay
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Refrescando tabla después de eliminar animal...')
+            await fetchAnimales()
+            console.log('✅ Tabla refrescada exitosamente')
+          } catch (refreshError) {
+            console.error('❌ Error al refrescar tabla:', refreshError)
+            toast.warning('Animal eliminado, pero hubo un problema al actualizar la lista.')
+          }
+        }, 500)
+        
       } catch (error) {
         console.error('Error al eliminar animal:', error)
+        toast.error('Ocurrió un error al eliminar el animal. Intenta nuevamente.')
       }
     }
   }
