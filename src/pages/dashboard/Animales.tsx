@@ -16,6 +16,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, Plus, Search, PawPrint, Eye, Edit, Trash2, Columns } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -63,81 +64,35 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ImageUpload } from "@/components/ui/image-upload"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAnimales } from "@/hooks/useAnimales"
+import type { Animal } from "@/services/animalesService"
+import { ImageUpload } from "@/components/ui/image-upload"
 
-const initialData: Animal[] = [
-  {
-    id: "1",
-    nombre: "Luna",
-    fotoUrl: "https://images.unsplash.com/photo-1543852786-1cf6624b998d?w=400&h=400&fit=crop&crop=face",
-    especie: "Perro",
-    sexo: "Hembra",
-    tamano: "Mediano",
-    peso: "15 kg",
-    fechaNacimiento: "2022-03-15",
-    publicado: true,
-  },
-  {
-    id: "2",
-    nombre: "Max",
-    fotoUrl: "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop&crop=face",
-    especie: "Gato",
-    sexo: "Macho",
-    tamano: "Pequeño",
-    peso: "4 kg",
-    fechaNacimiento: "2021-08-22",
-    publicado: true,
-  },
-  {
-    id: "3",
-    nombre: "Rocky",
-    fotoUrl: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop&crop=face",
-    especie: "Perro",
-    sexo: "Macho",
-    tamano: "Grande",
-    peso: "25 kg",
-    fechaNacimiento: "2020-11-10",
-    publicado: false,
-  },
-  {
-    id: "4",
-    nombre: "Mittens",
-    fotoUrl: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop&crop=face",
-    especie: "Gato",
-    sexo: "Hembra",
-    tamano: "Pequeño",
-    peso: "3.5 kg",
-    fechaNacimiento: "2023-01-05",
-    publicado: true,
-  },
-  {
-    id: "5",
-    nombre: "Buddy",
-    fotoUrl: "https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=400&h=400&fit=crop&crop=face",
-    especie: "Perro",
-    sexo: "Macho",
-    tamano: "Mediano",
-    peso: "18 kg",
-    fechaNacimiento: "2021-05-12",
-    publicado: true,
-  },
-]
+// Tipos actualizados para coincidir con la API real
+export type AnimalTable = Animal
 
-export type Animal = {
-  id: string
-  nombre: string
-  fotoUrl: string
-  especie: string
-  sexo: "Macho" | "Hembra"
-  tamano: string
-  peso: string
-  fechaNacimiento: string
-  publicado: boolean
-}
+// Funciones de manejo que se usarán en las columnas
+const createColumnHandlers = () => {
+  let handlers: {
+    handleViewDetails: (animal: AnimalTable) => void;
+    handleEdit: (animal: AnimalTable) => void;
+    handleTogglePublicacion: (animal: AnimalTable) => void;
+    handleDelete: (animal: AnimalTable) => void;
+  } | null = null;
 
-export const columns: ColumnDef<Animal>[] = [
+  return {
+    setHandlers: (newHandlers: typeof handlers) => {
+      handlers = newHandlers;
+    },
+    getHandlers: () => handlers,
+  };
+};
+
+const columnHandlers = createColumnHandlers();
+
+export const columns: ColumnDef<AnimalTable>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -161,22 +116,29 @@ export const columns: ColumnDef<Animal>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "fotoUrl",
+    accessorKey: "animalImagenes",
     header: "Foto",
-    cell: ({ row }) => (
+    cell: ({ row }) => {
+      const animal = row.original;
+      const imagenUrl = animal.animalImagenes.length > 0 
+        ? animal.animalImagenes[0].url 
+        : undefined;
+      
+      return (
         <div className="flex items-center">
-            <Avatar className="h-12 w-12">
-                <AvatarImage 
-                    src={row.original.fotoUrl} 
-                    alt={row.original.nombre}
-                    className="object-cover"
-                />
-                <AvatarFallback className="text-sm font-medium">
-                    {row.original.nombre.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-            </Avatar>
+          <Avatar className="h-12 w-12">
+            <AvatarImage 
+              src={imagenUrl} 
+              alt={animal.nombre}
+              className="object-cover"
+            />
+            <AvatarFallback className="text-sm font-medium">
+              {animal.nombre.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         </div>
-    ),
+      );
+    },
   },
   {
     accessorKey: "nombre",
@@ -190,7 +152,7 @@ export const columns: ColumnDef<Animal>[] = [
     header: "Especie",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-xs">
-        {row.getValue("especie")}
+        {row.original.especie.nombre}
       </Badge>
     ),
   },
@@ -198,79 +160,80 @@ export const columns: ColumnDef<Animal>[] = [
     accessorKey: "sexo",
     header: "Sexo",
     cell: ({ row }) => (
-      <Badge variant="secondary" className="text-xs">
-        {row.getValue("sexo")}
+      <Badge variant="outline" className="text-xs">
+        {row.original.sexo.nombre}
       </Badge>
     ),
   },
   {
     accessorKey: "tamano",
     header: "Tamaño",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-xs">
+        {row.original.tamano.nombre}
+      </Badge>
+    ),
   },
   {
     accessorKey: "peso",
     header: "Peso",
+    cell: ({ row }) => (
+      <div className="text-sm">{row.original.peso} kg</div>
+    ),
   },
   {
-    accessorKey: "fechaNacimiento",
-    header: "Fecha de Nacimiento",
-    cell: ({ row }) => {
-      const fecha = new Date(row.getValue("fechaNacimiento"))
-      return <div className="text-sm text-muted-foreground">
-        {fecha.toLocaleDateString('es-ES')}
-      </div>
-    },
+    accessorKey: "edad",
+    header: "Edad",
+    cell: ({ row }) => (
+      <div className="text-sm">{row.original.edad} años</div>
+    ),
   },
   {
     accessorKey: "publicado",
     header: "Estado",
     cell: ({ row }) => (
-      <Badge variant={row.getValue("publicado") ? "default" : "secondary"}>
-        {row.getValue("publicado") ? "Publicado" : "Borrador"}
+      <Badge variant={row.original.publicado ? "default" : "secondary"}>
+        {row.original.publicado ? "Publicado" : "Borrador"}
       </Badge>
     ),
   },
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row, table }) => {
+    cell: ({ row }) => {
       const animal = row.original
+      const handlers = columnHandlers.getHandlers();
 
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
+              <span className="sr-only">Abrir menú</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => {
-                const meta = table.options.meta as any
-                meta.handleViewDetails(animal)
-              }}
-            >
+            <DropdownMenuItem onClick={() => handlers?.handleViewDetails(animal)}>
               <Eye className="mr-2 h-4 w-4" />
               Ver detalles
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                const meta = table.options.meta as any
-                meta.handleEdit(animal)
-              }}
-            >
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handlers?.handleEdit(animal)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => handlers?.handleTogglePublicacion(animal)}
+              className={animal.publicado ? "text-orange-600" : "text-green-600"}
+            >
+              <PawPrint className="mr-2 h-4 w-4" />
+              {animal.publicado ? "Despublicar" : "Publicar"}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
+            <DropdownMenuItem 
+              onClick={() => handlers?.handleDelete(animal)}
               className="text-red-600"
-              onClick={() => {
-                const meta = table.options.meta as any
-                meta.handleDelete(animal)
-              }}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Eliminar
@@ -283,36 +246,50 @@ export const columns: ColumnDef<Animal>[] = [
 ]
 
 export default function AnimalesPage() {
-  const [data] = React.useState<Animal[]>(initialData)
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({
-      // Ocultar columnas menos importantes en pantallas pequeñas
-      peso: false,
-      fechaNacimiento: false,
-    })
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  
-  // Estados separados para cada diálogo
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
-  const [selectedAnimal, setSelectedAnimal] = React.useState<Animal | null>(null)
+  const [selectedAnimal, setSelectedAnimal] = React.useState<AnimalTable | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0)
 
-  const handleEdit = (animal: Animal) => {
+  // Usar el hook de animales
+  const { 
+    animales, 
+    loading, 
+    error, 
+    fetchAnimales, 
+    deleteAnimal, 
+    togglePublicacion 
+  } = useAnimales()
+
+  // Cargar datos al montar el componente
+  React.useEffect(() => {
+    fetchAnimales()
+  }, [fetchAnimales])
+
+  // Efecto para refrescar la tabla cuando cambie el refreshTrigger
+  React.useEffect(() => {
+    if (refreshTrigger > 0) {
+      console.log('🔄 Refrescando tabla por trigger:', refreshTrigger)
+      fetchAnimales()
+    }
+  }, [refreshTrigger, fetchAnimales])
+
+  const handleEdit = (animal: AnimalTable) => {
     setSelectedAnimal(animal)
     setIsFormOpen(true)
   }
 
-  const handleDelete = (animal: Animal) => {
+  const handleDelete = (animal: AnimalTable) => {
     setSelectedAnimal(animal)
     setIsDeleteOpen(true)
   }
 
-  const handleViewDetails = (animal: Animal) => {
+  const handleViewDetails = (animal: AnimalTable) => {
     setSelectedAnimal(animal)
     setIsDetailsOpen(true)
   }
@@ -322,8 +299,38 @@ export default function AnimalesPage() {
     setIsFormOpen(true)
   }
 
+  const handleTogglePublicacion = async (animal: AnimalTable) => {
+    try {
+      await togglePublicacion(animal.animalId, !animal.publicado)
+    } catch (error) {
+      console.error('Error al cambiar publicación:', error)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (selectedAnimal) {
+      try {
+        await deleteAnimal(selectedAnimal.animalId)
+        setIsDeleteOpen(false)
+        setSelectedAnimal(null)
+      } catch (error) {
+        console.error('Error al eliminar animal:', error)
+      }
+    }
+  }
+
+  // Configurar handlers para las columnas
+  React.useEffect(() => {
+    columnHandlers.setHandlers({
+      handleViewDetails,
+      handleEdit,
+      handleTogglePublicacion,
+      handleDelete,
+    });
+  }, []);
+
   const table = useReactTable({
-    data,
+    data: animales,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -339,18 +346,92 @@ export default function AnimalesPage() {
       columnVisibility,
       rowSelection,
     },
-    meta: {
-      handleEdit,
-      handleDelete,
-      handleViewDetails,
-    }
   })
 
   // Estadísticas
-  const totalAnimals = data.length
-  const publishedAnimals = data.filter(animal => animal.publicado).length
-  const dogs = data.filter(animal => animal.especie === "Perro").length
-  const cats = data.filter(animal => animal.especie === "Gato").length
+  const totalAnimals = animales.length
+  const publishedAnimals = animales.filter(animal => animal.publicado).length
+  const dogs = animales.filter(animal => animal.especie.nombre === "Perro").length
+  const cats = animales.filter(animal => animal.especie.nombre === "Gato").length
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Animales</h2>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Publicados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Perros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Gatos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Animales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Animales</h2>
+        </div>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <p>Error al cargar los animales: {error}</p>
+              <Button onClick={() => fetchAnimales()} className="mt-4">
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -579,7 +660,7 @@ export default function AnimalesPage() {
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => {
                 const selectCell = row.getVisibleCells().find(c => c.column.id === 'select');
-                const photoCell = row.getVisibleCells().find(c => c.column.id === 'fotoUrl');
+                const photoCell = row.getVisibleCells().find(c => c.column.id === 'animalImagenes');
                 const statusCell = row.getVisibleCells().find(c => c.column.id === 'publicado');
                 const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
 
@@ -591,7 +672,7 @@ export default function AnimalesPage() {
                         {photoCell && flexRender(photoCell.column.columnDef.cell, photoCell.getContext())}
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold truncate">{row.original.nombre}</p>
-                          <p className="text-sm text-muted-foreground">{row.original.especie}</p>
+                          <p className="text-sm text-muted-foreground">{row.original.especie.nombre}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -638,15 +719,17 @@ export default function AnimalesPage() {
       </Card>
 
       {/* Diálogos */}
-      <AnimalFormDialog 
-        isOpen={isFormOpen} 
-        setIsOpen={setIsFormOpen} 
-        animal={selectedAnimal} 
+      <AnimalFormDialog
+        isOpen={isFormOpen}
+        setIsOpen={setIsFormOpen}
+        animal={selectedAnimal}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
       />
       <DeleteConfirmationDialog
         isOpen={isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
         animalName={selectedAnimal?.nombre}
+        onConfirm={handleConfirmDelete}
       />
       <AnimalDetailsDialog
         isOpen={isDetailsOpen}
@@ -661,71 +744,150 @@ function AnimalFormDialog({
     isOpen,
     setIsOpen,
     animal,
+    onRefresh,
   }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    animal: Animal | null
+    animal: AnimalTable | null
+    onRefresh: () => void
   }) {
-    const [formData, setFormData] = React.useState<Omit<Animal, 'id'>>({
+    const [formData, setFormData] = React.useState({
         nombre: '',
-        fotoUrl: '',
-        especie: '',
-        sexo: 'Macho',
-        tamano: '',
-        peso: '',
+        peso: 0,
         fechaNacimiento: '',
+        descripcion: '',
+        especieId: 1,
+        sexoId: 1,
+        tamanoId: 1,
+        nivelActividadId: 1,
+        organizacionId: 1,
         publicado: true,
     })
+    const [imageFile, setImageFile] = React.useState<File | null>(null)
+    const [imagePreview, setImagePreview] = React.useState<string>('')
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    // Usar el hook de animales
+    const { createAnimal, uploadAnimalImage } = useAnimales()
 
     React.useEffect(() => {
         if (animal) {
             setFormData({
                 nombre: animal.nombre,
-                fotoUrl: animal.fotoUrl,
-                especie: animal.especie,
-                sexo: animal.sexo,
-                tamano: animal.tamano,
                 peso: animal.peso,
-                fechaNacimiento: animal.fechaNacimiento,
+                fechaNacimiento: animal.fechaNacimiento.split('T')[0],
+                descripcion: animal.descripcion,
+                especieId: animal.especieId,
+                sexoId: animal.sexoId,
+                tamanoId: animal.tamanoId,
+                nivelActividadId: animal.nivelActividadId,
+                organizacionId: animal.organizacionId,
                 publicado: animal.publicado,
             })
+            if (animal.animalImagenes.length > 0) {
+                setImagePreview(animal.animalImagenes[0].url)
+            }
         } else {
-            // Reset form for new animal
             setFormData({
                 nombre: '',
-                fotoUrl: '',
-                especie: '',
-                sexo: 'Macho',
-                tamano: '',
-                peso: '',
+                peso: 0,
                 fechaNacimiento: '',
+                descripcion: '',
+                especieId: 1,
+                sexoId: 1,
+                tamanoId: 1,
+                nivelActividadId: 1,
+                organizacionId: 1,
                 publicado: true,
             })
+            setImageFile(null)
+            setImagePreview('')
         }
     }, [animal, isOpen])
 
     const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target
-        setFormData(prev => ({ ...prev, [id]: type === 'checkbox' ? checked : value }))
+        setFormData(prev => ({ 
+            ...prev, 
+            [id]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value 
+        }))
     }
 
-    const handleSelectChange = (id: string) => (value: string) => {
-        setFormData(prev => ({ ...prev, [id]: value }))
-    }
-
-    const handleCheckedChange = (id: string) => (checked: boolean) => {
-        setFormData(prev => ({ ...prev, [id]: checked }))
+    const handleSelectChange = (field: string) => (value: string) => {
+        setFormData(prev => ({ ...prev, [field]: Number(value) }))
     }
 
     const handleImageChange = (value: string) => {
-        setFormData(prev => ({ ...prev, fotoUrl: value }))
+        setImagePreview(value)
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            setImageFile(fileInput.files[0])
+        }
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const resetForm = () => {
+        setFormData({
+            nombre: '',
+            peso: 0,
+            fechaNacimiento: '',
+            descripcion: '',
+            especieId: 1,
+            sexoId: 1,
+            tamanoId: 1,
+            nivelActividadId: 1,
+            organizacionId: 1,
+            publicado: true,
+        })
+        setImageFile(null)
+        setImagePreview('')
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        // Aquí iría la lógica para guardar
-        console.log('Guardando animal:', formData)
-        setIsOpen(false)
+        setIsSubmitting(true)
+        try {
+            // 1. Crear el animal
+            const newAnimal = await createAnimal({
+                nombre: formData.nombre,
+                peso: formData.peso,
+                fechaNacimiento: formData.fechaNacimiento,
+                descripcion: formData.descripcion,
+                especieId: formData.especieId,
+                sexoId: formData.sexoId,
+                organizacionId: formData.organizacionId,
+                tamanoId: formData.tamanoId,
+                nivelActividadId: formData.nivelActividadId,
+                publicado: formData.publicado,
+            })
+            
+            // 2. Si hay imagen, intentar subirla (pero no fallar si hay error)
+            if (imageFile && newAnimal.animalId) {
+                try {
+                    await uploadAnimalImage(newAnimal.animalId, imageFile)
+                } catch (imageError) {
+                    console.warn('Error al subir imagen, pero el animal se creó correctamente:', imageError)
+                    // No lanzar el error, solo mostrar un warning
+                    toast.warning('Animal creado exitosamente, pero hubo un problema al subir la imagen.')
+                }
+            }
+            
+            // 3. Cerrar formulario y limpiar
+            setIsOpen(false)
+            resetForm()
+            
+            // 4. Disparar el refresh de la tabla usando el trigger
+            onRefresh()
+            
+            // 5. Mostrar mensaje de éxito (solo si no se mostró el warning)
+            if (!imageFile || !newAnimal.animalId) {
+                toast.success('¡Animal creado exitosamente!')
+            }
+        } catch (error) {
+            console.error('Error al crear animal:', error)
+            toast.error('Ocurrió un error al crear el animal. Intenta nuevamente.')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -744,7 +906,7 @@ function AnimalFormDialog({
                     <div className="space-y-2">
                         <Label>Foto del animal</Label>
                         <ImageUpload
-                            value={formData.fotoUrl}
+                            value={imagePreview}
                             onChange={handleImageChange}
                         />
                     </div>
@@ -763,53 +925,14 @@ function AnimalFormDialog({
                         </div>
                         
                         <div className="space-y-2">
-                            <Label htmlFor="especie">Especie *</Label>
-                            <Select value={formData.especie} onValueChange={handleSelectChange('especie')}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona la especie" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Perro">Perro</SelectItem>
-                                    <SelectItem value="Gato">Gato</SelectItem>
-                                    <SelectItem value="Otro">Otro</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <Label htmlFor="sexo">Sexo *</Label>
-                            <Select value={formData.sexo} onValueChange={handleSelectChange('sexo')}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona el sexo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Macho">Macho</SelectItem>
-                                    <SelectItem value="Hembra">Hembra</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <Label htmlFor="tamano">Tamaño *</Label>
-                            <Select value={formData.tamano} onValueChange={handleSelectChange('tamano')}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona el tamaño" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Pequeño">Pequeño</SelectItem>
-                                    <SelectItem value="Mediano">Mediano</SelectItem>
-                                    <SelectItem value="Grande">Grande</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <Label htmlFor="peso">Peso *</Label>
+                            <Label htmlFor="peso">Peso (kg) *</Label>
                             <Input 
                                 id="peso" 
+                                type="number"
+                                step="0.1"
                                 value={formData.peso} 
                                 onChange={handleValueChange} 
-                                placeholder="Ej: 15 kg"
+                                placeholder="Ej: 15.5"
                                 required
                             />
                         </div>
@@ -818,31 +941,95 @@ function AnimalFormDialog({
                             <Label htmlFor="fechaNacimiento">Fecha de Nacimiento *</Label>
                             <Input 
                                 id="fechaNacimiento" 
-                                type="date" 
+                                type="date"
                                 value={formData.fechaNacimiento} 
                                 onChange={handleValueChange} 
                                 required
                             />
                         </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="especieId">Especie *</Label>
+                            <Select value={formData.especieId.toString()} onValueChange={handleSelectChange('especieId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona la especie" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1">Perro</SelectItem>
+                                    <SelectItem value="2">Gato</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="sexoId">Sexo *</Label>
+                            <Select value={formData.sexoId.toString()} onValueChange={handleSelectChange('sexoId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona el sexo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1">Macho</SelectItem>
+                                    <SelectItem value="2">Hembra</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="tamanoId">Tamaño *</Label>
+                            <Select value={formData.tamanoId.toString()} onValueChange={handleSelectChange('tamanoId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona el tamaño" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1">Pequeño</SelectItem>
+                                    <SelectItem value="2">Mediano</SelectItem>
+                                    <SelectItem value="3">Grande</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="nivelActividadId">Nivel de Actividad *</Label>
+                            <Select value={formData.nivelActividadId.toString()} onValueChange={handleSelectChange('nivelActividadId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona el nivel" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1">Bajo</SelectItem>
+                                    <SelectItem value="2">Medio</SelectItem>
+                                    <SelectItem value="3">Alto</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Input 
+                            id="descripcion" 
+                            value={formData.descripcion} 
+                            onChange={handleValueChange} 
+                            placeholder="Describe al animal..."
+                        />
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                        <Checkbox 
-                            id="publicado" 
-                            checked={formData.publicado} 
-                            onCheckedChange={handleCheckedChange('publicado')} 
+                        <input
+                            type="checkbox"
+                            id="publicado"
+                            checked={formData.publicado}
+                            onChange={handleValueChange}
+                            className="rounded"
                         />
-                        <Label htmlFor="publicado" className="text-sm">
-                            Publicar inmediatamente en el sitio web
-                        </Label>
+                        <Label htmlFor="publicado">Publicar inmediatamente</Label>
                     </div>
-                    
-                    <DialogFooter className="gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => { setIsOpen(false); resetForm(); }} disabled={isSubmitting}>
                             Cancelar
                         </Button>
-                        <Button type="submit">
-                            {animal ? 'Actualizar' : 'Crear'} Animal
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Guardando...' : (animal ? 'Actualizar' : 'Crear') + ' Animal'}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -855,11 +1042,13 @@ function DeleteConfirmationDialog({
     isOpen,
     setIsOpen,
     animalName,
-    }: {
+    onConfirm,
+  }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
     animalName?: string
-    }) {
+    onConfirm: () => Promise<void>
+  }) {
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
         <AlertDialogContent>
@@ -872,7 +1061,7 @@ function DeleteConfirmationDialog({
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
                 Eliminar
             </AlertDialogAction>
             </AlertDialogFooter>
@@ -888,7 +1077,7 @@ function AnimalDetailsDialog({
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    animal: Animal | null
+    animal: AnimalTable | null
     }) {
     if (!animal) return null;
 
@@ -907,7 +1096,7 @@ function AnimalDetailsDialog({
                         <div className="relative">
                             <Avatar className="h-24 w-24 sm:h-32 sm:w-32">
                                 <AvatarImage 
-                                    src={animal.fotoUrl} 
+                                    src={animal.animalImagenes.length > 0 ? animal.animalImagenes[0].url : ''} 
                                     alt={animal.nombre} 
                                     className="object-cover"
                                 />
@@ -919,8 +1108,8 @@ function AnimalDetailsDialog({
                         <div className="flex-1 text-center sm:text-left">
                             <h3 className="text-lg font-semibold">{animal.nombre}</h3>
                             <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
-                                <Badge variant="outline">{animal.especie}</Badge>
-                                <Badge variant="secondary">{animal.sexo}</Badge>
+                                <Badge variant="outline">{animal.especie.nombre}</Badge>
+                                <Badge variant="secondary">{animal.sexo.nombre}</Badge>
                                 <Badge variant={animal.publicado ? "default" : "secondary"}>
                                     {animal.publicado ? "Publicado" : "Borrador"}
                                 </Badge>
@@ -933,7 +1122,7 @@ function AnimalDetailsDialog({
                         <div className="space-y-3">
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-muted-foreground">Tamaño:</span>
-                                <span className="text-sm font-medium">{animal.tamano}</span>
+                                <span className="text-sm font-medium">{animal.tamano.nombre}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-muted-foreground">Peso:</span>
@@ -942,15 +1131,9 @@ function AnimalDetailsDialog({
                         </div>
                         <div className="space-y-3">
                             <div className="flex justify-between">
-                                <span className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento:</span>
-                                <span className="text-sm font-medium">
-                                    {new Date(animal.fechaNacimiento).toLocaleDateString('es-ES')}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
                                 <span className="text-sm font-medium text-muted-foreground">Edad:</span>
                                 <span className="text-sm font-medium">
-                                    {Math.floor((new Date().getTime() - new Date(animal.fechaNacimiento).getTime()) / (1000 * 60 * 60 * 24 * 365))} años
+                                    {animal.edad} años
                                 </span>
                             </div>
                         </div>
