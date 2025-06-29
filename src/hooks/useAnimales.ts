@@ -152,27 +152,6 @@ export function useAnimales() {
     }
   }, [animalesService]);
 
-  // Publicar/despublicar un animal
-  const togglePublicacion = useCallback(async (id: number, publicado: boolean) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const updatedAnimal = await animalesService.togglePublicacion(id, publicado);
-      setAnimales(prev => 
-        prev.map(animal => 
-          animal.animalId === id ? updatedAnimal : animal
-        )
-      );
-      return updatedAnimal;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar publicación del animal');
-      console.error('Error toggling publication:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [animalesService]);
-
   // Obtener animales por organización
   const fetchAnimalesByOrganizacion = useCallback(async (organizacionId: number, filters: AnimalesFilters = {}) => {
     setLoading(true);
@@ -304,7 +283,6 @@ export function useAnimales() {
     createAnimal,
     updateAnimal,
     deleteAnimal,
-    togglePublicacion,
     fetchAnimalesByOrganizacion,
     fetchAnimalesPublicados,
     uploadAnimalImage,

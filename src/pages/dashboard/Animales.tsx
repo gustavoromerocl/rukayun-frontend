@@ -78,7 +78,6 @@ const createColumnHandlers = () => {
   let handlers: {
     handleViewDetails: (animal: AnimalTable) => void;
     handleEdit: (animal: AnimalTable) => void;
-    handleTogglePublicacion: (animal: AnimalTable) => void;
     handleDelete: (animal: AnimalTable) => void;
   } | null = null;
 
@@ -223,13 +222,6 @@ export const columns: ColumnDef<AnimalTable>[] = [
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handlers?.handleTogglePublicacion(animal)}
-              className={animal.publicado ? "text-orange-600" : "text-green-600"}
-            >
-              <PawPrint className="mr-2 h-4 w-4" />
-              {animal.publicado ? "Despublicar" : "Publicar"}
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={() => handlers?.handleDelete(animal)}
@@ -262,8 +254,7 @@ export default function AnimalesPage() {
     loading, 
     error, 
     fetchAnimales, 
-    deleteAnimal, 
-    togglePublicacion
+    deleteAnimal
   } = useAnimales()
 
   // Cargar datos al montar el componente
@@ -297,14 +288,6 @@ export default function AnimalesPage() {
   const handleAddNew = () => {
     setSelectedAnimal(null)
     setIsFormOpen(true)
-  }
-
-  const handleTogglePublicacion = async (animal: AnimalTable) => {
-    try {
-      await togglePublicacion(animal.animalId, !animal.publicado)
-    } catch (error) {
-      console.error('Error al cambiar publicación:', error)
-    }
   }
 
   const handleConfirmDelete = async () => {
@@ -344,7 +327,6 @@ export default function AnimalesPage() {
     columnHandlers.setHandlers({
       handleViewDetails,
       handleEdit,
-      handleTogglePublicacion,
       handleDelete,
     });
   }, []);
@@ -796,10 +778,15 @@ function AnimalFormDialog({
     // Cargar datos del animal cuando se abre el formulario
     React.useEffect(() => {
         if (animal) {
+            // Convertir la fecha de nacimiento al formato YYYY-MM-DD para el input de tipo date
+            const fechaNacimiento = animal.fechaNacimiento ? 
+                new Date(animal.fechaNacimiento).toISOString().split('T')[0] : 
+                '';
+            
             setFormData({
                 nombre: animal.nombre,
                 peso: animal.peso,
-                fechaNacimiento: animal.fechaNacimiento,
+                fechaNacimiento: fechaNacimiento,
                 descripcion: animal.descripcion,
                 especieId: animal.especieId,
                 sexoId: animal.sexoId,
