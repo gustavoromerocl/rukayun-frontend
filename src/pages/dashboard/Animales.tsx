@@ -768,7 +768,7 @@ function AnimalFormDialog({
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
     // Usar el hook de animales
-    const { createAnimal, uploadAnimalImage } = useAnimales()
+    const { createAnimal, updateAnimal, uploadAnimalImage } = useAnimales()
 
     React.useEffect(() => {
         if (animal) {
@@ -846,45 +846,65 @@ function AnimalFormDialog({
         e.preventDefault()
         setIsSubmitting(true)
         try {
-            // 1. Crear el animal
-            const newAnimal = await createAnimal({
-                nombre: formData.nombre,
-                peso: formData.peso,
-                fechaNacimiento: formData.fechaNacimiento,
-                descripcion: formData.descripcion,
-                especieId: formData.especieId,
-                sexoId: formData.sexoId,
-                organizacionId: formData.organizacionId,
-                tamanoId: formData.tamanoId,
-                nivelActividadId: formData.nivelActividadId,
-                publicado: formData.publicado,
-            })
+            let updatedAnimal;
             
-            // 2. Si hay imagen, intentar subirla (pero no fallar si hay error)
-            if (imageFile && newAnimal.animalId) {
+            if (animal) {
+                // Modo edición - actualizar animal existente
+                console.log('✏️ Modo edición - actualizando animal:', animal.animalId);
+                updatedAnimal = await updateAnimal(animal.animalId, {
+                    nombre: formData.nombre,
+                    peso: formData.peso,
+                    fechaNacimiento: formData.fechaNacimiento,
+                    descripcion: formData.descripcion,
+                    especieId: formData.especieId,
+                    sexoId: formData.sexoId,
+                    organizacionId: formData.organizacionId,
+                    tamanoId: formData.tamanoId,
+                    nivelActividadId: formData.nivelActividadId,
+                    publicado: formData.publicado,
+                });
+            } else {
+                // Modo creación - crear nuevo animal
+                console.log('🆕 Modo creación - creando nuevo animal');
+                updatedAnimal = await createAnimal({
+                    nombre: formData.nombre,
+                    peso: formData.peso,
+                    fechaNacimiento: formData.fechaNacimiento,
+                    descripcion: formData.descripcion,
+                    especieId: formData.especieId,
+                    sexoId: formData.sexoId,
+                    organizacionId: formData.organizacionId,
+                    tamanoId: formData.tamanoId,
+                    nivelActividadId: formData.nivelActividadId,
+                    publicado: formData.publicado,
+                });
+            }
+            
+            // Si hay imagen nueva, intentar subirla (pero no fallar si hay error)
+            if (imageFile && updatedAnimal.animalId) {
                 try {
-                    await uploadAnimalImage(newAnimal.animalId, imageFile)
+                    await uploadAnimalImage(updatedAnimal.animalId, imageFile)
                 } catch (imageError) {
-                    console.warn('Error al subir imagen, pero el animal se creó correctamente:', imageError)
+                    console.warn('Error al subir imagen, pero el animal se guardó correctamente:', imageError)
                     // No lanzar el error, solo mostrar un warning
-                    toast.warning('Animal creado exitosamente, pero hubo un problema al subir la imagen.')
+                    toast.warning(`Animal ${animal ? 'actualizado' : 'creado'} exitosamente, pero hubo un problema al subir la imagen.`)
                 }
             }
             
-            // 3. Cerrar formulario y limpiar
+            // Cerrar formulario y limpiar
             setIsOpen(false)
             resetForm()
             
-            // 4. Disparar el refresh de la tabla usando el trigger
+            // Disparar el refresh de la tabla usando el trigger
             onRefresh()
             
-            // 5. Mostrar mensaje de éxito (solo si no se mostró el warning)
-            if (!imageFile || !newAnimal.animalId) {
-                toast.success('¡Animal creado exitosamente!')
+            // Mostrar mensaje de éxito (solo si no se mostró el warning)
+            if (!imageFile || !updatedAnimal.animalId) {
+                toast.success(`¡Animal ${animal ? 'actualizado' : 'creado'} exitosamente!`)
             }
         } catch (error) {
-            console.error('Error al crear animal:', error)
-            toast.error('Ocurrió un error al crear el animal. Intenta nuevamente.')
+            console.error(`Error al ${animal ? 'actualizar' : 'crear'} animal:`, error)
+            toast.error(`Ocurrió un error al ${animal ? 'actualizar' : 'crear'} el animal. Intenta nuevamente.`)
         } finally {
             setIsSubmitting(false)
         }

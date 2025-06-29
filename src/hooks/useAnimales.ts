@@ -101,22 +101,23 @@ export function useAnimales() {
 
   // Actualizar un animal
   const updateAnimal = useCallback(async (id: number, data: UpdateAnimalRequest) => {
+    console.log('✏️ Actualizando animal con ID:', id, 'datos:', data);
     setLoading(true);
     setError(null);
     try {
+      console.log('📡 Llamando a animalesService.updateAnimal...');
       const updatedAnimal = await animalesService.updateAnimal(id, data);
-      setAnimales(prev => 
-        prev.map(animal => 
-          animal.animalId === id ? updatedAnimal : animal
-        )
-      );
+      console.log('✅ Animal actualizado exitosamente:', updatedAnimal);
+      // No actualizar el estado local aquí, dejar que fetchAnimales lo haga
+      // para evitar inconsistencias
       return updatedAnimal;
     } catch (err) {
+      console.error('❌ Error updating animal:', err);
       setError(err instanceof Error ? err.message : 'Error al actualizar el animal');
-      console.error('Error updating animal:', err);
       throw err;
     } finally {
       setLoading(false);
+      console.log('🏁 updateAnimal completado');
     }
   }, [animalesService]);
 
