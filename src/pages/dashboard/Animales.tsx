@@ -263,7 +263,7 @@ export default function AnimalesPage() {
     error, 
     fetchAnimales, 
     deleteAnimal, 
-    togglePublicacion 
+    togglePublicacion
   } = useAnimales()
 
   // Cargar datos al montar el componente
@@ -771,6 +771,15 @@ function AnimalFormDialog({
     animal: AnimalTable | null
     onRefresh: () => void
   }) {
+    const { createAnimal, updateAnimal, uploadAnimalImage, deleteAnimalImage } = useAnimales()
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [isDeletingImage, setIsDeletingImage] = React.useState(false)
+    const [imageFile, setImageFile] = React.useState<File | null>(null)
+    const [imagePreview, setImagePreview] = React.useState<string>('')
+    const [currentServerImage, setCurrentServerImage] = React.useState<{ animalId: number; imagenId: number; url: string } | null>(null)
+    const [needsRefresh, setNeedsRefresh] = React.useState(false)
+
+    // Estado del formulario
     const [formData, setFormData] = React.useState({
         nombre: '',
         peso: 0,
@@ -783,19 +792,14 @@ function AnimalFormDialog({
         organizacionId: 1,
         publicado: true,
     })
-    const [imageFile, setImageFile] = React.useState<File | null>(null)
-    const [imagePreview, setImagePreview] = React.useState<string>('')
-    const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-    // Usar el hook de animales
-    const { createAnimal, updateAnimal, uploadAnimalImage } = useAnimales()
-
+    // Cargar datos del animal cuando se abre el formulario
     React.useEffect(() => {
         if (animal) {
             setFormData({
                 nombre: animal.nombre,
                 peso: animal.peso,
-                fechaNacimiento: animal.fechaNacimiento.split('T')[0],
+                fechaNacimiento: animal.fechaNacimiento,
                 descripcion: animal.descripcion,
                 especieId: animal.especieId,
                 sexoId: animal.sexoId,
@@ -804,44 +808,73 @@ function AnimalFormDialog({
                 organizacionId: animal.organizacionId,
                 publicado: animal.publicado,
             })
-            if (animal.animalImagenes.length > 0) {
-                setImagePreview(animal.animalImagenes[0].url)
+            
+            // Si el animal tiene imágenes, mostrar la primera
+            if (animal.animalImagenes && animal.animalImagenes.length > 0) {
+                const primeraImagen = animal.animalImagenes[0]
+                setImagePreview(primeraImagen.url)
+                setCurrentServerImage({
+                    animalId: animal.animalId,
+                    imagenId: primeraImagen.animalImagenId,
+                    url: primeraImagen.url
+                })
+            } else {
+                setImagePreview('')
+                setCurrentServerImage(null)
             }
         } else {
-            setFormData({
-                nombre: '',
-                peso: 0,
-                fechaNacimiento: '',
-                descripcion: '',
-                especieId: 1,
-                sexoId: 1,
-                tamanoId: 1,
-                nivelActividadId: 1,
-                organizacionId: 1,
-                publicado: true,
-            })
-            setImageFile(null)
-            setImagePreview('')
+            resetForm()
         }
-    }, [animal, isOpen])
+    }, [animal])
 
     const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target
-        setFormData(prev => ({ 
-            ...prev, 
-            [id]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value 
+        setFormData(prev => ({
+            ...prev,
+            [id]: type === 'checkbox' ? checked : value
         }))
     }
 
     const handleSelectChange = (field: string) => (value: string) => {
-        setFormData(prev => ({ ...prev, [field]: Number(value) }))
+        setFormData(prev => ({ ...prev, [field]: parseInt(value) }))
     }
 
     const handleImageChange = (value: string) => {
         setImagePreview(value)
+        // Si se selecciona una nueva imagen, limpiar la imagen del servidor
+        setCurrentServerImage(null)
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
         if (fileInput && fileInput.files && fileInput.files[0]) {
             setImageFile(fileInput.files[0])
+        }
+    }
+
+    const handleRemoveServerImage = async () => {
+        if (currentServerImage) {
+            setIsDeletingImage(true)
+            try {
+                console.log('🗑️ Eliminando imagen del servidor:', currentServerImage.imagenId)
+                
+                // Primero eliminar del servidor
+                await deleteAnimalImage(currentServerImage.animalId, currentServerImage.imagenId)
+                console.log('✅ Imagen eliminada exitosamente')
+                
+                // Solo después de confirmar que se eliminó, limpiar el estado local
+                setImagePreview('')
+                setCurrentServerImage(null)
+                
+                // Marcar que se necesita refrescar la tabla cuando se cierre el modal
+                setNeedsRefresh(true)
+                
+                toast.success('Imagen eliminada exitosamente')
+                
+            } catch (error) {
+                console.error('Error al eliminar imagen:', error)
+                toast.error('Error al eliminar la imagen. Intenta nuevamente.')
+                // No restaurar nada porque la imagen nunca se eliminó del estado
+            } finally {
+                setIsDeletingImage(false)
+            }
         }
     }
 
@@ -860,6 +893,7 @@ function AnimalFormDialog({
         })
         setImageFile(null)
         setImagePreview('')
+        setCurrentServerImage(null)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -915,8 +949,8 @@ function AnimalFormDialog({
             setIsOpen(false)
             resetForm()
             
-            // Disparar el refresh de la tabla usando el trigger
-            onRefresh()
+            // Marcar que se necesita refrescar la tabla
+            setNeedsRefresh(true)
             
             // Mostrar mensaje de éxito (solo si no se mostró el warning)
             if (!imageFile || !updatedAnimal.animalId) {
@@ -930,8 +964,21 @@ function AnimalFormDialog({
         }
     }
 
+    // Función para manejar el cierre del modal
+    const handleCloseModal = () => {
+        setIsOpen(false)
+        resetForm()
+        // Solo refrescar si es necesario
+        if (needsRefresh) {
+            setTimeout(() => {
+                onRefresh()
+                setNeedsRefresh(false)
+            }, 100)
+        }
+    }
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleCloseModal}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-xl">
@@ -948,6 +995,9 @@ function AnimalFormDialog({
                         <ImageUpload
                             value={imagePreview}
                             onChange={handleImageChange}
+                            onRemove={handleRemoveServerImage}
+                            isServerImage={!!currentServerImage}
+                            loading={isDeletingImage}
                         />
                     </div>
                     
@@ -1065,7 +1115,7 @@ function AnimalFormDialog({
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => { setIsOpen(false); resetForm(); }} disabled={isSubmitting}>
+                        <Button type="button" variant="outline" onClick={handleCloseModal} disabled={isSubmitting}>
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>

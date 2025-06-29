@@ -258,6 +258,27 @@ export function useAnimales() {
     }
   }, [instance]);
 
+  // Eliminar imagen de animal
+  const deleteAnimalImage = useCallback(async (animalId: number, imagenId: number) => {
+    console.log('🗑️ Eliminando imagen de animal:', animalId, 'imagen:', imagenId);
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('📡 Llamando a animalesService.deleteAnimalImage...');
+      await animalesService.deleteAnimalImage(animalId, imagenId);
+      console.log('✅ Imagen eliminada exitosamente');
+      // No actualizar el estado local aquí, dejar que fetchAnimales lo haga
+      // para evitar inconsistencias
+    } catch (err) {
+      console.error('❌ Error deleting animal image:', err);
+      setError(err instanceof Error ? err.message : 'Error al eliminar la imagen');
+      throw err;
+    } finally {
+      setLoading(false);
+      console.log('🏁 deleteAnimalImage completado');
+    }
+  }, [animalesService]);
+
   // Limpiar error
   const clearError = useCallback(() => {
     setError(null);
@@ -277,6 +298,7 @@ export function useAnimales() {
     fetchAnimalesByOrganizacion,
     fetchAnimalesPublicados,
     uploadAnimalImage,
+    deleteAnimalImage,
     clearError,
   };
 } 

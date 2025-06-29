@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils"
 interface ImageUploadProps {
   value?: string
   onChange?: (value: string) => void
+  onRemove?: () => void
+  isServerImage?: boolean
+  loading?: boolean
   className?: string
   disabled?: boolean
 }
@@ -13,6 +16,9 @@ interface ImageUploadProps {
 export function ImageUpload({
   value,
   onChange,
+  onRemove,
+  isServerImage = false,
+  loading = false,
   className,
   disabled = false,
 }: ImageUploadProps) {
@@ -76,7 +82,12 @@ export function ImageUpload({
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onChange?.('')
+    
+    if (isServerImage && onRemove) {
+      onRemove()
+    } else {
+      onChange?.('')
+    }
   }
 
   return (
@@ -105,9 +116,13 @@ export function ImageUpload({
               size="icon"
               className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={handleRemove}
-              disabled={disabled}
+              disabled={disabled || loading}
             >
-              <X className="h-4 w-4" />
+              {loading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>

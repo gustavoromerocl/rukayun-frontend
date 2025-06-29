@@ -181,4 +181,9 @@ export class AnimalesService {
   async getAnimalesPublicados(filters: AnimalesFilters = {}): Promise<AnimalesResponse> {
     return this.getAnimales({ ...filters, publicado: true });
   }
+
+  // Eliminar imagen de animal
+  async deleteAnimalImage(animalId: number, imagenId: number): Promise<void> {
+    return this.apiClient.delete<void>(`/animales/${animalId}/imagenes/${imagenId}`);
+  }
 } 
