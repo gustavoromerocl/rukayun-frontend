@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, Phone, Home, User } from "lucide-react"
+import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -40,7 +40,6 @@ import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -57,90 +56,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { useAdopciones } from "@/hooks/useAdopciones"
+import type { Adopcion } from "@/services/adopcionesService"
 
-const data: Solicitud[] = [
-    {
-        id: "adp_1",
-        animal: {
-          nombre: "Max",
-          especie: "Perro",
-          fotoUrl: "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop&crop=face"
-        },
-        solicitante: {
-          nombre: "Olivia Martin",
-          email: "olivia.martin@example.com",
-          telefono: "+1 234 567 890",
-          direccion: "123 Maple St, Springfield"
-        },
-        fechaSolicitud: "2024-05-10",
-        estado: "Pendiente",
-        respuestas: [
-            { pregunta: "¿Tiene experiencia previa con mascotas?", respuesta: "Sí, he tenido perros toda mi vida." },
-            { pregunta: "¿Dispone de un espacio exterior (patio, jardín)?", respuesta: "Sí, tengo un patio trasero cercado." },
-        ]
-    },
-    {
-        id: "adp_2",
-        animal: {
-          nombre: "Luna",
-          especie: "Gato",
-          fotoUrl: "https://images.unsplash.com/photo-1543852786-1cf6624b998d?w=400&h=400&fit=crop&crop=face"
-        },
-        solicitante: {
-          nombre: "Jackson Lee",
-          email: "jackson.lee@example.com",
-          telefono: "+1 987 654 321",
-          direccion: "456 Oak Ave, Shelbyville"
-        },
-        fechaSolicitud: "2024-05-12",
-        estado: "Aprobada",
-        respuestas: [
-            { pregunta: "¿Vive solo o con más personas?", respuesta: "Vivo con mi pareja. Ambos amamos los gatos." },
-            { pregunta: "¿Está dispuesto a cubrir los gastos veterinarios?", respuesta: "Absolutamente." },
-        ]
-    },
-    {
-        id: "adp_3",
-        animal: {
-          nombre: "Rocky",
-          especie: "Perro",
-          fotoUrl: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop&crop=face"
-        },
-        solicitante: {
-          nombre: "Isabella Nguyen",
-          email: "isabella.nguyen@example.com",
-          telefono: "+1 555 123 456",
-          direccion: "789 Pine Ln, Capital City"
-        },
-        fechaSolicitud: "2024-05-15",
-        estado: "Rechazada",
-        respuestas: [
-            { pregunta: "¿Cuántas horas al día pasaría la mascota sola?", respuesta: "Alrededor de 10 horas, por mi trabajo." },
-        ]
-    },
-]
-
-type AnimalInfo = {
-  nombre: string
-  especie: string
-  fotoUrl: string
-}
-
-type SolicitanteInfo = {
-  nombre: string
-  email: string
-  telefono: string
-  direccion: string
-}
-
-export type Solicitud = {
-  id: string
-  animal: AnimalInfo
-  solicitante: SolicitanteInfo
-  fechaSolicitud: string
-  estado: "Pendiente" | "Aprobada" | "Rechazada"
-  respuestas: { pregunta: string; respuesta: string }[]
-}
+// Tipos actualizados para coincidir con la API real
+export type Solicitud = Adopcion
 
 export const columns: ColumnDef<Solicitud>[] = [
   {
@@ -166,30 +86,30 @@ export const columns: ColumnDef<Solicitud>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "solicitante",
-    header: "Solicitante",
+    accessorKey: "usuarioId",
+    header: "Usuario ID",
     cell: ({ row }) => (
-      <div className="font-medium">{row.original.solicitante.nombre}</div>
+      <div className="font-medium">{row.original.usuarioId}</div>
     )
   },
   {
     accessorKey: "animal",
     header: "Animal",
     cell: ({ row }) => {
-      const { nombre, especie } = row.original.animal;
-      return `${nombre} (${especie})`;
+      const { nombre } = row.original.animal;
+      return nombre;
     }
   },
   {
-    accessorKey: "fechaSolicitud",
+    accessorKey: "fechaCreacion",
     header: "Fecha",
-    cell: ({ row }) => new Date(row.getValue("fechaSolicitud")).toLocaleDateString('es-ES'),
+    cell: ({ row }) => new Date(row.getValue("fechaCreacion")).toLocaleDateString('es-ES'),
   },
   {
-    accessorKey: "estado",
+    accessorKey: "adopcionEstado",
     header: "Estado",
     cell: ({ row }) => {
-      const estado = row.getValue("estado") as string
+      const estado = row.original.adopcionEstado.nombre
       const variant = {
         "Pendiente": "default" as const,
         "Aprobada": "secondary" as const,
@@ -237,16 +157,22 @@ export const columns: ColumnDef<Solicitud>[] = [
 
 export default function SolicitudesPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({})
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
-  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
-  const [actionToConfirm, setActionToConfirm] = React.useState<"Aprobar" | "Rechazar" | null>(null)
   const [selectedSolicitud, setSelectedSolicitud] = React.useState<Solicitud | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+  const [isConfirmationOpen, setIsConfirmationOpen] = React.useState(false)
+  const [confirmationAction, setConfirmationAction] = React.useState<"Aprobar" | "Rechazar" | null>(null)
+  const [solicitudToAction, setSolicitudToAction] = React.useState<Solicitud | null>(null)
+
+  // Usar el hook de adopciones
+  const { adopciones, loading, error, fetchAdopciones } = useAdopciones()
+
+  // Cargar datos al montar el componente
+  React.useEffect(() => {
+    fetchAdopciones()
+  }, [fetchAdopciones])
 
   const handleViewDetails = (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud)
@@ -254,19 +180,19 @@ export default function SolicitudesPage() {
   }
 
   const handleApprove = (solicitud: Solicitud) => {
-    setSelectedSolicitud(solicitud)
-    setActionToConfirm("Aprobar")
-    setIsConfirmOpen(true)
+    setSolicitudToAction(solicitud)
+    setConfirmationAction("Aprobar")
+    setIsConfirmationOpen(true)
   }
 
   const handleReject = (solicitud: Solicitud) => {
-    setSelectedSolicitud(solicitud)
-    setActionToConfirm("Rechazar")
-    setIsConfirmOpen(true)
+    setSolicitudToAction(solicitud)
+    setConfirmationAction("Rechazar")
+    setIsConfirmationOpen(true)
   }
 
   const table = useReactTable({
-    data,
+    data: adopciones,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -283,16 +209,87 @@ export default function SolicitudesPage() {
       rowSelection,
     },
     meta: {
-        handleViewDetails,
-        handleApprove,
-        handleReject,
+      handleViewDetails,
+      handleApprove,
+      handleReject,
     }
   })
 
   const stats = {
-    pendientes: data.filter(s => s.estado === 'Pendiente').length,
-    aprobadas: data.filter(s => s.estado === 'Aprobada').length,
-    rechazadas: data.filter(s => s.estado === 'Rechazada').length
+    pendientes: adopciones.filter(s => s.adopcionEstado.nombre === 'Pendiente').length,
+    aprobadas: adopciones.filter(s => s.adopcionEstado.nombre === 'Aprobada').length,
+    rechazadas: adopciones.filter(s => s.adopcionEstado.nombre === 'Rechazada').length
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Solicitudes de Adopción</h2>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Aprobadas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rechazadas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Solicitudes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Solicitudes de Adopción</h2>
+        </div>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <p>Error al cargar las solicitudes: {error}</p>
+              <Button onClick={fetchAdopciones} className="mt-4">
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -413,28 +410,28 @@ export default function SolicitudesPage() {
           {/* Vista de Tarjetas para Móvil */}
           <div className="md:hidden space-y-3">
             {table.getRowModel().rows.map((row) => {
-              const { solicitante, animal, fechaSolicitud, estado } = row.original
+              const { usuarioId, animal, fechaCreacion, adopcionEstado } = row.original
               const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
 
               return (
                 <Card key={row.id}>
                   <CardContent className="p-4 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{solicitante.nombre}</p>
+                      <p className="font-semibold truncate">{usuarioId}</p>
                       <p className="text-sm text-muted-foreground truncate">
                         Para: <span className="font-medium text-foreground">{animal.nombre}</span>
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(fechaSolicitud).toLocaleDateString('es-ES')}
+                        {new Date(fechaCreacion).toLocaleDateString('es-ES')}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <Badge variant={
-                        estado === "Pendiente" ? "default" :
-                        estado === "Aprobada" ? "secondary" :
-                        estado === "Rechazada" ? "destructive" : "default"
+                        adopcionEstado.nombre === "Pendiente" ? "default" :
+                        adopcionEstado.nombre === "Aprobada" ? "secondary" :
+                        adopcionEstado.nombre === "Rechazada" ? "destructive" : "default"
                       }>
-                        {estado}
+                        {adopcionEstado.nombre}
                       </Badge>
                       {actionsCell && flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
                     </div>
@@ -476,91 +473,97 @@ export default function SolicitudesPage() {
         solicitud={selectedSolicitud}
       />
       <ConfirmationDialog
-        isOpen={isConfirmOpen}
-        setIsOpen={setIsConfirmOpen}
-        action={actionToConfirm}
-        solicitud={selectedSolicitud}
+        isOpen={isConfirmationOpen}
+        setIsOpen={setIsConfirmationOpen}
+        action={confirmationAction}
+        solicitud={solicitudToAction}
       />
     </div>
   )
 }
 
 function SolicitudDetailsDialog({
-    isOpen,
-    setIsOpen,
-    solicitud,
-    }: {
-    isOpen: boolean
-    setIsOpen: (isOpen: boolean) => void
-    solicitud: Solicitud | null
-    }) {
+  isOpen,
+  setIsOpen,
+  solicitud,
+}: {
+  isOpen: boolean
+  setIsOpen: (isOpen: boolean) => void
+  solicitud: Solicitud | null
+}) {
+  if (!solicitud) return null
 
-    if (!solicitud) return null
+  const { animal, usuarioId, fechaCreacion } = solicitud
 
-    const { animal, solicitante, fechaSolicitud, respuestas } = solicitud
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <Avatar className="w-12 h-12">
+              <AvatarImage src="/placeholder-avatar.jpg" alt={animal.nombre} />
+              <AvatarFallback>{animal.nombre.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="text-xl font-bold">Solicitud de Adopción</div>
+              <div className="text-sm text-muted-foreground">
+                {animal.nombre} • {new Date(fechaCreacion).toLocaleDateString('es-ES')}
+              </div>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
 
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Detalles de la Solicitud</DialogTitle>
-                    <DialogDescription>
-                        Revisa la información completa de la solicitud de adopción.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-                    {/* Columna del Animal */}
-                    <div className="md:col-span-1 space-y-4">
-                        <Card>
-                            <CardHeader className="p-4">
-                                <h3 className="font-semibold">Animal</h3>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0 text-center">
-                                <Avatar className="h-24 w-24 mx-auto">
-                                    <AvatarImage src={animal.fotoUrl} alt={animal.nombre} />
-                                    <AvatarFallback>{animal.nombre.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <p className="font-semibold mt-2">{animal.nombre}</p>
-                                <p className="text-sm text-muted-foreground">{animal.especie}</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-lg mb-2">Información del Animal</h4>
+              <div className="space-y-2 text-sm">
+                <div><strong>Nombre:</strong> {animal.nombre}</div>
+                <div><strong>Edad:</strong> {animal.edad} años</div>
+                <div><strong>Peso:</strong> {animal.peso} kg</div>
+                <div><strong>Descripción:</strong> {animal.descripcion}</div>
+              </div>
+            </div>
 
-                    {/* Columna de Detalles y Respuestas */}
-                    <div className="md:col-span-2 space-y-6">
-                        <div>
-                            <h4 className="font-semibold text-lg mb-2">Información del Solicitante</h4>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> {solicitante.nombre}</div>
-                                <div className="flex items-center gap-3"><Mail className="w-4 h-4 text-muted-foreground" /> {solicitante.email}</div>
-                                <div className="flex items-center gap-3"><Phone className="w-4 h-4 text-muted-foreground" /> {solicitante.telefono}</div>
-                                <div className="flex items-center gap-3"><Home className="w-4 h-4 text-muted-foreground" /> {solicitante.direccion}</div>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-lg mb-2">Cuestionario</h4>
-                            <div className="space-y-4">
-                                {respuestas.map((r, index) => (
-                                    <div key={index} className="text-sm">
-                                        <p className="font-medium text-muted-foreground">{r.pregunta}</p>
-                                        <p>{r.respuesta}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                    <div className="flex-1 text-xs text-muted-foreground">
-                        Solicitud recibida el {new Date(fechaSolicitud).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    </div>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
-                    <Button className="bg-red-600 hover:bg-red-700">Rechazar</Button>
-                    <Button className="bg-green-600 hover:bg-green-700">Aprobar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
+            <div>
+              <h4 className="font-semibold text-lg mb-2">Información del Solicitante</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> Usuario ID: {usuarioId}</div>
+                <div className="text-muted-foreground">Información de contacto no disponible</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-lg mb-2">Descripción de la Familia</h4>
+              <div className="text-sm bg-muted p-3 rounded-lg">
+                {solicitud.descripcionFamilia || "No se proporcionó descripción de la familia."}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-lg mb-2">Estado de la Solicitud</h4>
+              <Badge variant={
+                solicitud.adopcionEstado.nombre === "Pendiente" ? "default" :
+                solicitud.adopcionEstado.nombre === "Aprobada" ? "secondary" :
+                solicitud.adopcionEstado.nombre === "Rechazada" ? "destructive" : "default"
+              }>
+                {solicitud.adopcionEstado.nombre}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex-1 text-xs text-muted-foreground">
+            Solicitud recibida el {new Date(fechaCreacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+          </div>
+          <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function ConfirmationDialog({
@@ -580,7 +583,7 @@ function ConfirmationDialog({
     const isApproving = action === "Aprobar"
     
     const title = `¿Seguro que quieres ${action.toLowerCase()} la solicitud?`
-    const description = `Se notificará al solicitante, ${solicitud.solicitante.nombre}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
+    const description = `Se notificará al solicitante, ${solicitud.usuarioId}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
 
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -593,7 +596,7 @@ function ConfirmationDialog({
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
                         className={isApproving ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-                        onClick={() => console.log(`${action} solicitud ${solicitud.id}`)}
+                        onClick={() => console.log(`${action} solicitud ${solicitud.usuarioId}`)}
                     >
                         Confirmar
                     </AlertDialogAction>
