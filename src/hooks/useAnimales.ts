@@ -54,7 +54,17 @@ export function useAnimales() {
       console.log('✅ Estado actualizado con', response.items.length, 'animales');
     } catch (err) {
       console.error('❌ Error fetching animales:', err);
-      setError(err instanceof Error ? err.message : 'Error al obtener animales');
+      
+      // Manejar específicamente errores de timeout/aborto
+      if (err instanceof Error) {
+        if (err.message.includes('timeout') || err.message.includes('aborted')) {
+          setError('La conexión tardó demasiado. Verifica tu conexión a internet e intenta nuevamente.');
+        } else {
+          setError(err.message || 'Error al obtener animales');
+        }
+      } else {
+        setError('Error al obtener animales');
+      }
     } finally {
       setLoading(false);
       console.log('🏁 fetchAnimales completado');

@@ -949,8 +949,10 @@ function AnimalFormDialog({
             setIsOpen(false)
             resetForm()
             
-            // Marcar que se necesita refrescar la tabla
-            setNeedsRefresh(true)
+            // Refrescar la tabla inmediatamente después de crear/actualizar
+            setTimeout(() => {
+                onRefresh()
+            }, 100)
             
             // Mostrar mensaje de éxito (solo si no se mostró el warning)
             if (!imageFile || !updatedAnimal.animalId) {
@@ -968,7 +970,7 @@ function AnimalFormDialog({
     const handleCloseModal = () => {
         setIsOpen(false)
         resetForm()
-        // Solo refrescar si es necesario
+        // Solo refrescar si se eliminó una imagen
         if (needsRefresh) {
             setTimeout(() => {
                 onRefresh()

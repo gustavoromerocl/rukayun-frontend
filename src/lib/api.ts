@@ -3,7 +3,7 @@ import type { IPublicClientApplication } from "@azure/msal-browser";
 // Configuración base de la API
 const API_CONFIG = {
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -62,6 +62,8 @@ class ApiClient {
   ): Promise<T> {
     const url = `${API_CONFIG.baseURL}${endpoint}`;
     
+    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+    
     // Aplicar interceptor de autenticación
     const configWithAuth = await this.authInterceptor({
       ...options,
@@ -73,7 +75,10 @@ class ApiClient {
 
     // Crear un AbortController para manejar el timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+    const timeoutId = setTimeout(() => {
+      console.log(`⏰ Timeout for ${options.method || 'GET'} ${url}`);
+      controller.abort();
+    }, API_CONFIG.timeout);
 
     try {
       const response = await fetch(url, {
@@ -82,26 +87,43 @@ class ApiClient {
       });
 
       clearTimeout(timeoutId);
+      console.log(`✅ API Response: ${response.status} ${response.statusText} for ${options.method || 'GET'} ${url}`);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
       }
 
       // Si la respuesta es 204 No Content, no intentar parsear JSON
       if (response.status === 204) {
+        console.log(`📭 204 No Content for ${options.method || 'GET'} ${url}`);
         return {} as T;
       }
 
       // Verificar si hay contenido en la respuesta antes de intentar parsear JSON
       const responseText = await response.text();
       if (responseText.trim()) {
-        return JSON.parse(responseText);
+        const parsed = JSON.parse(responseText);
+        console.log(`📦 Parsed response for ${options.method || 'GET'} ${url}:`, parsed);
+        return parsed;
       }
       
       // Si no hay contenido, retornar un objeto vacío
+      console.log(`📭 Empty response for ${options.method || 'GET'} ${url}`);
       return {} as T;
     } catch (error) {
       clearTimeout(timeoutId);
+      
+      // Manejar específicamente errores de aborto
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error(`❌ Request aborted for ${options.method || 'GET'} ${url}:`, error.message);
+          throw new Error(`Request timeout after ${API_CONFIG.timeout}ms`);
+        }
+        console.error(`❌ API Error for ${options.method || 'GET'} ${url}:`, error.message);
+      } else {
+        console.error(`❌ Unknown API Error for ${options.method || 'GET'} ${url}:`, error);
+      }
+      
       throw error;
     }
   }
