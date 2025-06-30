@@ -1,1 +1,4 @@
-/*    /index.html   200 
+/*    /index.html   200
+
+# Proxy para la API - redirige peticiones a /api/* hacia tu servidor EC2
+/api/*    https://20.161.57.132:8080/:splat    200 
