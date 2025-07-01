@@ -1,15 +1,8 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 
 // Configuración base de la API
-console.log('🔍 Variables de entorno disponibles:', {
-  PROD: import.meta.env.PROD,
-  DEV: import.meta.env.DEV,
-  MODE: import.meta.env.MODE,
-  VITE_API_URL: import.meta.env.VITE_API_URL
-});
-
 const API_CONFIG = {
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8080'),
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
