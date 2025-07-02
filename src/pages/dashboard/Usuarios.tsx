@@ -112,26 +112,6 @@ export default function UsuariosOrgPage() {
     setEditData({})
   }
 
-  const handleDeactivate = (usuario: any) => {
-    setDeactivateUser(usuario)
-  }
-
-  const confirmDeactivate = () => {
-    if (deactivateUser) {
-      // Implementa la lógica para desactivar el usuario
-      setDeactivateUser(null)
-    }
-  }
-
-  const handleReactivate = (usuario: any) => {
-    // Implementa la lógica para reactivar el usuario
-  }
-
-  const handleAdd = () => {
-    setAddOpen(true)
-    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true })
-  }
-
   const handleAddSave = async () => {
     setAddLoading(true);
     try {
@@ -334,7 +314,7 @@ export default function UsuariosOrgPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeactivate} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => setDeactivateUser(null)} className="bg-red-600 hover:bg-red-700">
               Desactivar
             </AlertDialogAction>
           </AlertDialogFooter>

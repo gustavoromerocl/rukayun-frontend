@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useApi } from './useApi';
-import { UsuariosService } from '@/services/usuariosService';
-import type { Comuna } from '@/services/usuariosService';
 
 export function useComunas() {
   const apiClient = useApi();
