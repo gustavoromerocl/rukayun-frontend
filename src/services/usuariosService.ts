@@ -1,5 +1,10 @@
 import { ApiClient } from '@/lib/api';
 
+export interface Comuna {
+  comunaId: number;
+  nombre: string;
+}
+
 export interface Usuario {
   usuarioId: number;
   username: string;
@@ -10,7 +15,10 @@ export interface Usuario {
   direccion: string | null;
   telefono: string | null;
   telefono2: string | null;
-  comuna: string | null;
+  comuna: {
+    comunaId: number;
+    nombre: string;
+  } | null;
   rol: string;
   // Campos opcionales para compatibilidad
   nombre?: string;
@@ -51,5 +59,10 @@ export class UsuariosService {
   // Actualizar perfil del usuario
   async actualizarPerfil(data: Partial<Usuario>): Promise<Usuario> {
     return this.apiClient.put<Usuario>('/usuarios/perfil', data);
+  }
+
+  // Obtener lista de comunas
+  async obtenerComunas(): Promise<Comuna[]> {
+    return this.apiClient.get<Comuna[]>('/comunas');
   }
 } 

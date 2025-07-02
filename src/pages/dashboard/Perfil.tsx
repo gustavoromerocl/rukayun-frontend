@@ -12,7 +12,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/hooks/useAuth"
+import { useComunas } from "@/hooks/useComunas"
 import { useMsal } from "@azure/msal-react"
 import { useApi } from "@/hooks/useApi"
 import { UsuariosService } from "@/services/usuariosService"
@@ -33,6 +41,7 @@ import { toast } from "sonner"
 
 export default function PerfilPage() {
   const { usuario, loading, error, recargarPerfil } = useAuth()
+  const { comunas, loading: comunasLoading } = useComunas()
   const { accounts } = useMsal()
   const apiClient = useApi()
   const [isEditing, setIsEditing] = useState(false)
@@ -47,7 +56,7 @@ export default function PerfilPage() {
     telefono: "",
     telefono2: "",
     direccion: "",
-    comuna: ""
+    comunaId: null as number | null
   })
 
   // Inicializar datos del formulario con datos del backend
@@ -59,7 +68,7 @@ export default function PerfilPage() {
         telefono: usuario.telefono || "",
         telefono2: usuario.telefono2 || "",
         direccion: usuario.direccion || "",
-        comuna: usuario.comuna || ""
+        comunaId: usuario.comuna?.comunaId || null
       })
     }
   }, [usuario])
@@ -91,7 +100,7 @@ export default function PerfilPage() {
         telefono: usuario.telefono || "",
         telefono2: usuario.telefono2 || "",
         direccion: usuario.direccion || "",
-        comuna: usuario.comuna || ""
+        comunaId: usuario.comuna?.comunaId || null
       })
     }
     setIsEditing(false)
@@ -102,8 +111,20 @@ export default function PerfilPage() {
     return `${nombres[0] || ""}${apellidos[0] || ""}`.toUpperCase()
   }
 
+  // Obtener el nombre de la comuna actual
+  const getComunaNombre = (comunaId: number | null) => {
+    if (!comunaId) return "";
+    const comuna = comunas.find(c => c.comunaId === comunaId);
+    return comuna ? comuna.nombre : "";
+  }
+
+  // Obtener el nombre de la comuna del usuario actual
+  const getCurrentComunaNombre = () => {
+    return usuario?.comuna?.nombre || "";
+  }
+
   // Mostrar loading mientras se cargan los datos
-  if (loading) {
+  if (loading || comunasLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-start">
@@ -413,12 +434,29 @@ export default function PerfilPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="comuna">Comuna</Label>
-                <Input 
-                  id="comuna" 
-                  value={formData.comuna}
-                  onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  disabled={!isEditing}
-                />
+                {isEditing ? (
+                  <Select
+                    value={formData.comunaId?.toString() || ""}
+                    onValueChange={(value) => setFormData({...formData, comunaId: value ? Number(value) : null})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una comuna" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {comunas.map((comuna) => (
+                        <SelectItem key={comuna.comunaId} value={comuna.comunaId.toString()}>
+                          {comuna.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input 
+                    value={getCurrentComunaNombre()}
+                    disabled
+                    className="bg-muted"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -507,6 +545,17 @@ export default function PerfilPage() {
                     {usuario?.fechaCreacion ? new Date(usuario.fechaCreacion).toLocaleDateString('es-ES') : "No disponible"}
                   </p>
                 </div>
+              </div>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <h4 className="font-medium">Comuna</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {usuario.comuna?.nombre || "No especificada"}
+                  </p>
+                </div>
+                <Badge variant="outline">
+                  {usuario.comuna?.nombre || "Sin comuna"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
