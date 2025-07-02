@@ -61,7 +61,6 @@ import {
   Users,
   MapPin,
   Phone,
-  Mail,
   Users2,
   Loader2
 } from "lucide-react"
@@ -71,10 +70,6 @@ import { toast } from "sonner"
 import type { Organizacion, Usuario } from "@/services/usuariosService"
 
 export default function OrganizacionesPage() {
-  const [sorting, setSorting] = React.useState<any[]>([])
-  const [columnFilters, setColumnFilters] = React.useState<any[]>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<any>({})
-  const [rowSelection, setRowSelection] = React.useState({})
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
