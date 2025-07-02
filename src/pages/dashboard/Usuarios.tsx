@@ -75,6 +75,7 @@ export default function UsuariosOrgPage() {
     setEditData({
       ...usuario,
       email: usuario.email || usuario.username || '',
+      comunaId: usuario.comuna?.comunaId ?? ''
     })
   }
 
@@ -303,7 +304,7 @@ export default function UsuariosOrgPage() {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium">Comuna</label>
-              <Select value={editData.comunaId || (editData.comuna?.comunaId?.toString() ?? '')} onValueChange={value => setEditData((d: any) => ({ ...d, comunaId: value }))}>
+              <Select value={editData.comunaId ? String(editData.comunaId) : ''} onValueChange={value => setEditData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una comuna" />
                 </SelectTrigger>
@@ -374,7 +375,7 @@ export default function UsuariosOrgPage() {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium">Comuna</label>
-              <Select value={addData.comunaId || ''} onValueChange={value => setAddData((d: any) => ({ ...d, comunaId: value }))}>
+              <Select value={addData.comunaId ? String(addData.comunaId) : ''} onValueChange={value => setAddData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una comuna" />
                 </SelectTrigger>
