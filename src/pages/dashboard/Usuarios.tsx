@@ -83,6 +83,8 @@ function getInitials(nombres: string, apellidos: string) {
 }
 
 export default function UsuariosOrgPage() {
+  console.log('UsuariosOrgPage - Componente renderizado');
+  
   const [usuarios, setUsuarios] = useState<Usuario[]>(mockUsuarios)
   const [search, setSearch] = useState("")
   const [editUser, setEditUser] = useState<Usuario | null>(null)

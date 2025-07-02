@@ -1,18 +1,13 @@
 import { useMsal } from "@azure/msal-react";
 import { Navigate } from "react-router-dom";
 import { LoadingScreen } from "./LoadingScreen";
-import { useAuth } from "@/hooks/useAuth";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { accounts, inProgress } = useMsal();
-  const { usuario, loading: authLoading, error: authError } = useAuth();
 
   // Debug temporal
   console.log('RequireAuth - Accounts:', accounts);
   console.log('RequireAuth - InProgress:', inProgress);
-  console.log('RequireAuth - Usuario:', usuario);
-  console.log('RequireAuth - AuthLoading:', authLoading);
-  console.log('RequireAuth - AuthError:', authError);
 
   if (inProgress !== "none") {
     console.log('RequireAuth - Mostrando LoadingScreen');
@@ -24,18 +19,39 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     return <Navigate to="/" replace />;
   }
 
-  // Si está cargando la verificación del perfil, mostrar loading
-  if (authLoading) {
-    console.log('RequireAuth - Verificando perfil, mostrando LoadingScreen');
+  console.log('RequireAuth - Usuario autenticado, mostrando children');
+  return <>{children}</>;
+}
+
+export function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { accounts, inProgress } = useMsal();
+
+  // Debug temporal
+  console.log('RequireAdmin - Accounts:', accounts);
+  console.log('RequireAdmin - InProgress:', inProgress);
+
+  if (inProgress !== "none") {
+    console.log('RequireAdmin - Mostrando LoadingScreen');
     return <LoadingScreen />;
   }
 
-  // Si hay error en la verificación del perfil, mostrar warning pero permitir acceso
-  if (authError) {
-    console.log('RequireAuth - Error en verificación de perfil (permitiendo acceso):', authError);
-    // Mostrar un toast o notificación pero no bloquear el acceso
+  if (!accounts[0]) {
+    console.log('RequireAdmin - No hay cuenta, redirigiendo a /');
+    return <Navigate to="/" replace />;
   }
 
-  console.log('RequireAuth - Usuario autenticado, mostrando children');
+  // Verificar rol de administrador
+  const user = accounts[0];
+  const userRole = user?.idTokenClaims?.extension_Roles || user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
+  
+  console.log('RequireAdmin - UserRole:', userRole);
+  console.log('RequireAdmin - IdTokenClaims:', user?.idTokenClaims);
+
+  if (userRole !== 'SUPER_ADMIN') {
+    console.log('RequireAdmin - Usuario no es SUPER_ADMIN, redirigiendo a /dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  console.log('RequireAdmin - Usuario es SUPER_ADMIN, mostrando children');
   return <>{children}</>;
 } 

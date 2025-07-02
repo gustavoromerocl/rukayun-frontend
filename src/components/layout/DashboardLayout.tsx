@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, X, Users } from "lucide-react";
+import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, X, Users, Building2 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner"
@@ -28,7 +28,7 @@ export function DashboardLayout() {
   // Obtener información del usuario desde MSAL
   const user = accounts[0];
   // Obtener el rol desde los claims de MSAL (si está disponible)
-  const userRole = user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
+  const userRole = user?.idTokenClaims?.extension_Roles || user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
@@ -85,21 +85,37 @@ export function DashboardLayout() {
               </Link>
             ))}
             {/* Solo para administradores */}
-            {userRole === 'admin' && (
-              <Link
-                to="/dashboard/usuarios"
-                onClick={closeSidebar}
-                className={`
-                  flex items-center gap-3 px-3 py-3 rounded-lg font-medium transition-all duration-200
-                  ${location.pathname === "/dashboard/usuarios" 
-                    ? "bg-primary/10 text-primary border border-primary/20" 
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }
-                `}
-              >
-                <Users className="w-5 h-5" />
-                Usuarios
-              </Link>
+            {userRole === 'SUPER_ADMIN' && (
+              <>
+                <Link
+                  to="/dashboard/usuarios"
+                  onClick={closeSidebar}
+                  className={`
+                    flex items-center gap-3 px-3 py-3 rounded-lg font-medium transition-all duration-200
+                    ${location.pathname === "/dashboard/usuarios" 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }
+                  `}
+                >
+                  <Users className="w-5 h-5" />
+                  Usuarios
+                </Link>
+                <Link
+                  to="/dashboard/organizaciones"
+                  onClick={closeSidebar}
+                  className={`
+                    flex items-center gap-3 px-3 py-3 rounded-lg font-medium transition-all duration-200
+                    ${location.pathname === "/dashboard/organizaciones" 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }
+                  `}
+                >
+                  <Building2 className="w-5 h-5" />
+                  Organizaciones
+                </Link>
+              </>
             )}
           </nav>
 
