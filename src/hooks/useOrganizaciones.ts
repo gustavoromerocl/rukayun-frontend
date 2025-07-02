@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from './useApi';
 import { OrganizacionesService } from '@/services/organizacionesService';
-import type { Organizacion } from '@/services/usuariosService';
+import type { Organizacion, Usuario } from '@/services/usuariosService';
 
 export function useOrganizaciones() {
   const apiClient = useApi();
@@ -62,6 +62,57 @@ export function useOrganizaciones() {
     }
   }, [apiClient]);
 
+  // Métodos para gestión de usuarios en organizaciones
+  const agregarUsuarioAOrganizacion = useCallback(async (organizacionId: number, usuarioId: number) => {
+    try {
+      const organizacionesService = new OrganizacionesService(apiClient);
+      await organizacionesService.agregarUsuarioAOrganizacion(organizacionId, usuarioId);
+      // Refrescar la organización para actualizar la lista de usuarios
+      const organizacionActualizada = await organizacionesService.obtenerOrganizacion(organizacionId);
+      setOrganizaciones(prev => prev.map(org => 
+        org.organizacionId === organizacionId ? organizacionActualizada : org
+      ));
+    } catch (err) {
+      console.error('Error agregando usuario a organización:', err);
+      throw err;
+    }
+  }, [apiClient]);
+
+  const removerUsuarioDeOrganizacion = useCallback(async (organizacionId: number, usuarioId: number) => {
+    try {
+      const organizacionesService = new OrganizacionesService(apiClient);
+      await organizacionesService.removerUsuarioDeOrganizacion(organizacionId, usuarioId);
+      // Refrescar la organización para actualizar la lista de usuarios
+      const organizacionActualizada = await organizacionesService.obtenerOrganizacion(organizacionId);
+      setOrganizaciones(prev => prev.map(org => 
+        org.organizacionId === organizacionId ? organizacionActualizada : org
+      ));
+    } catch (err) {
+      console.error('Error removiendo usuario de organización:', err);
+      throw err;
+    }
+  }, [apiClient]);
+
+  const obtenerUsuariosDeOrganizacion = useCallback(async (organizacionId: number): Promise<Usuario[]> => {
+    try {
+      const organizacionesService = new OrganizacionesService(apiClient);
+      return await organizacionesService.obtenerUsuariosDeOrganizacion(organizacionId);
+    } catch (err) {
+      console.error('Error obteniendo usuarios de organización:', err);
+      throw err;
+    }
+  }, [apiClient]);
+
+  const obtenerTodosLosUsuarios = useCallback(async (): Promise<Usuario[]> => {
+    try {
+      const organizacionesService = new OrganizacionesService(apiClient);
+      return await organizacionesService.obtenerTodosLosUsuarios();
+    } catch (err) {
+      console.error('Error obteniendo todos los usuarios:', err);
+      throw err;
+    }
+  }, [apiClient]);
+
   useEffect(() => {
     fetchOrganizaciones();
   }, [fetchOrganizaciones]);
@@ -74,5 +125,9 @@ export function useOrganizaciones() {
     createOrganizacion,
     updateOrganizacion,
     deleteOrganizacion,
+    agregarUsuarioAOrganizacion,
+    removerUsuarioDeOrganizacion,
+    obtenerUsuariosDeOrganizacion,
+    obtenerTodosLosUsuarios,
   };
 } 

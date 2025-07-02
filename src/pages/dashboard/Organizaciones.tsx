@@ -61,12 +61,14 @@ import {
   Users,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  Users2,
+  Loader2
 } from "lucide-react"
 import { useOrganizaciones } from "@/hooks/useOrganizaciones"
 import { useComunas } from "@/hooks/useComunas"
 import { toast } from "sonner"
-import type { Organizacion } from "@/services/usuariosService"
+import type { Organizacion, Usuario } from "@/services/usuariosService"
 
 export default function OrganizacionesPage() {
   const [sorting, setSorting] = React.useState<any[]>([])
@@ -76,6 +78,7 @@ export default function OrganizacionesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+  const [isGestionarUsuariosOpen, setIsGestionarUsuariosOpen] = React.useState(false)
   const [selectedOrganizacion, setSelectedOrganizacion] = React.useState<Organizacion | null>(null)
   const [refreshTrigger, setRefreshTrigger] = React.useState(0)
   const [searchTerm, setSearchTerm] = React.useState("")
@@ -88,7 +91,11 @@ export default function OrganizacionesPage() {
     fetchOrganizaciones, 
     deleteOrganizacion,
     createOrganizacion,
-    updateOrganizacion
+    updateOrganizacion,
+    agregarUsuarioAOrganizacion,
+    removerUsuarioDeOrganizacion,
+    obtenerUsuariosDeOrganizacion,
+    obtenerTodosLosUsuarios
   } = useOrganizaciones()
 
   // Usar el hook de comunas
@@ -120,6 +127,11 @@ export default function OrganizacionesPage() {
   const handleViewDetails = (organizacion: Organizacion) => {
     setSelectedOrganizacion(organizacion)
     setIsDetailsOpen(true)
+  }
+
+  const handleGestionarUsuarios = (organizacion: Organizacion) => {
+    setSelectedOrganizacion(organizacion)
+    setIsGestionarUsuariosOpen(true)
   }
 
   const handleAddNew = () => {
@@ -367,6 +379,10 @@ export default function OrganizacionesPage() {
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalles
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGestionarUsuarios(organizacion)}>
+                            <Users2 className="mr-2 h-4 w-4" />
+                            Gestionar Usuarios
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(organizacion)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
@@ -420,6 +436,17 @@ export default function OrganizacionesPage() {
         isOpen={isDetailsOpen}
         setIsOpen={setIsDetailsOpen}
         organizacion={selectedOrganizacion}
+      />
+
+      {/* Componente para gestionar usuarios de una organización */}
+      <GestionarUsuariosDialog
+        isOpen={isGestionarUsuariosOpen}
+        setIsOpen={setIsGestionarUsuariosOpen}
+        organizacion={selectedOrganizacion}
+        agregarUsuarioAOrganizacion={agregarUsuarioAOrganizacion}
+        removerUsuarioDeOrganizacion={removerUsuarioDeOrganizacion}
+        obtenerUsuariosDeOrganizacion={obtenerUsuariosDeOrganizacion}
+        obtenerTodosLosUsuarios={obtenerTodosLosUsuarios}
       />
     </div>
   )
@@ -721,6 +748,196 @@ function OrganizacionDetailsDialog({
                 {organizacion.fechaEliminacion ? "Eliminada" : "Activa"}
               </Badge>
             </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => setIsOpen(false)}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Componente para gestionar usuarios de una organización
+interface GestionarUsuariosDialogProps {
+  isOpen: boolean
+  setIsOpen: (open: boolean) => void
+  organizacion: Organizacion | null
+  agregarUsuarioAOrganizacion: (organizacionId: number, usuarioId: number) => Promise<void>
+  removerUsuarioDeOrganizacion: (organizacionId: number, usuarioId: number) => Promise<void>
+  obtenerUsuariosDeOrganizacion: (organizacionId: number) => Promise<Usuario[]>
+  obtenerTodosLosUsuarios: () => Promise<Usuario[]>
+}
+
+function GestionarUsuariosDialog({
+  isOpen,
+  setIsOpen,
+  organizacion,
+  agregarUsuarioAOrganizacion,
+  removerUsuarioDeOrganizacion,
+  obtenerUsuariosDeOrganizacion,
+  obtenerTodosLosUsuarios
+}: GestionarUsuariosDialogProps) {
+  const [usuariosOrganizacion, setUsuariosOrganizacion] = React.useState<Usuario[]>([])
+  const [todosLosUsuarios, setTodosLosUsuarios] = React.useState<Usuario[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const [addingUser, setAddingUser] = React.useState(false)
+  const [removingUserId, setRemovingUserId] = React.useState<number | null>(null)
+  const [selectedUsuarioId, setSelectedUsuarioId] = React.useState<string>('')
+
+  // Cargar usuarios cuando se abre el diálogo
+  React.useEffect(() => {
+    if (isOpen && organizacion) {
+      loadUsuarios()
+    }
+  }, [isOpen, organizacion])
+
+  const loadUsuarios = async () => {
+    if (!organizacion) return
+    
+    setLoading(true)
+    try {
+      const [usuariosOrg, todosUsuarios] = await Promise.all([
+        obtenerUsuariosDeOrganizacion(organizacion.organizacionId),
+        obtenerTodosLosUsuarios()
+      ])
+      setUsuariosOrganizacion(usuariosOrg)
+      setTodosLosUsuarios(todosUsuarios)
+    } catch (error) {
+      console.error('Error cargando usuarios:', error)
+      toast.error('Error al cargar los usuarios')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAgregarUsuario = async () => {
+    if (!organizacion || !selectedUsuarioId) return
+
+    setAddingUser(true)
+    try {
+      await agregarUsuarioAOrganizacion(organizacion.organizacionId, parseInt(selectedUsuarioId))
+      toast.success('Usuario agregado exitosamente')
+      setSelectedUsuarioId('')
+      loadUsuarios() // Recargar la lista
+    } catch (error) {
+      console.error('Error agregando usuario:', error)
+      toast.error('Error al agregar el usuario')
+    } finally {
+      setAddingUser(false)
+    }
+  }
+
+  const handleRemoverUsuario = async (usuarioId: number) => {
+    if (!organizacion) return
+
+    setRemovingUserId(usuarioId)
+    try {
+      await removerUsuarioDeOrganizacion(organizacion.organizacionId, usuarioId)
+      toast.success('Usuario removido exitosamente')
+      loadUsuarios() // Recargar la lista
+    } catch (error) {
+      console.error('Error removiendo usuario:', error)
+      toast.error('Error al remover el usuario')
+    } finally {
+      setRemovingUserId(null)
+    }
+  }
+
+  // Filtrar usuarios que no están en la organización
+  const usuariosDisponibles = todosLosUsuarios.filter(
+    usuario => !usuariosOrganizacion.some(u => u.usuarioId === usuario.usuarioId)
+  )
+
+  if (!organizacion) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Gestionar Usuarios - {organizacion.nombre}</DialogTitle>
+          <DialogDescription>
+            Agrega o remueve usuarios de esta organización.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Agregar usuario */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Agregar Usuario</h3>
+            <div className="flex gap-2">
+              <Select value={selectedUsuarioId} onValueChange={setSelectedUsuarioId}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Selecciona un usuario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {usuariosDisponibles.map((usuario) => (
+                    <SelectItem key={usuario.usuarioId} value={usuario.usuarioId.toString()}>
+                      {usuario.nombres} {usuario.apellidos} ({usuario.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={handleAgregarUsuario}
+                disabled={!selectedUsuarioId || loading || addingUser}
+              >
+                {addingUser ? 'Agregando...' : 'Agregar'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Lista de usuarios actuales */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Usuarios de la Organización</h3>
+            {loading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-12 bg-gray-200 rounded animate-pulse"></div>
+                ))}
+              </div>
+            ) : usuariosOrganizacion.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No hay usuarios en esta organización.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {usuariosOrganizacion.map((usuario) => (
+                  <div key={usuario.usuarioId} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
+                          {usuario.nombres?.substring(0, 1)}{usuario.apellidos?.substring(0, 1)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {usuario.nombres} {usuario.apellidos}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {usuario.username} • {usuario.rol}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoverUsuario(usuario.usuarioId)}
+                      disabled={loading || addingUser || removingUserId === usuario.usuarioId}
+                    >
+                      {removingUserId === usuario.usuarioId ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
