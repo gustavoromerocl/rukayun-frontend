@@ -13,7 +13,7 @@ import Seguimiento from "@/pages/dashboard/Seguimiento";
 import Perfil from "@/pages/dashboard/Perfil";
 import Configuracion from "@/pages/dashboard/Configuracion";
 import Usuarios from "@/pages/dashboard/Usuarios";
-import { RequireAuth } from "@/components/RequireAuth";
+import { RequireAuth, RequireAdmin } from "@/components/RequireAuth";
 
 function App() {
   return (
@@ -38,7 +38,11 @@ function App() {
           <Route path="seguimiento" element={<Seguimiento />} />
           <Route path="perfil" element={<Perfil />} />
           <Route path="configuracion" element={<Configuracion />} />
-          <Route path="usuarios" element={<Usuarios />} />
+          <Route path="usuarios" element={
+            <RequireAdmin>
+              <Usuarios />
+            </RequireAdmin>
+          } />
         </Route>
       </Routes>
     </BrowserRouter>

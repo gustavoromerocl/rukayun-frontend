@@ -28,7 +28,7 @@ export function DashboardLayout() {
   // Obtener información del usuario desde MSAL
   const user = accounts[0];
   // Obtener el rol desde los claims de MSAL (si está disponible)
-  const userRole = user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
+  const userRole = user?.idTokenClaims?.extension_Roles || user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
@@ -85,7 +85,7 @@ export function DashboardLayout() {
               </Link>
             ))}
             {/* Solo para administradores */}
-            {userRole === 'admin' && (
+            {userRole === 'SUPER_ADMIN' && (
               <Link
                 to="/dashboard/usuarios"
                 onClick={closeSidebar}
