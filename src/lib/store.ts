@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { Comuna } from "@/services/usuariosService";
 import { UsuariosService } from "@/services/usuariosService";
-import { useApi } from "@/hooks/useApi";
 
 export interface User {
   id: string;
