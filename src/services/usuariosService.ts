@@ -80,4 +80,10 @@ export class UsuariosService {
   async obtenerComunas(): Promise<Comuna[]> {
     return this.apiClient.get<Comuna[]>('/comunas');
   }
+
+  // Listar usuarios (opcionalmente por organización)
+  async listarUsuarios(organizacionId?: number): Promise<Usuario[]> {
+    const query = organizacionId ? `?organizacionId=${organizacionId}` : '';
+    return this.apiClient.get<Usuario[]>(`/usuarios${query}`);
+  }
 } 
