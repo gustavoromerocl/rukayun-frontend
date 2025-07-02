@@ -52,52 +52,43 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSeguimientos } from "@/hooks/useSeguimientos"
+import type { Seguimiento as SeguimientoBackend } from "@/services/seguimientosService"
+import { toast } from "sonner"
 
-const data: Seguimiento[] = [
+// Tipo para la tabla que combina datos del backend con datos calculados
+export type SeguimientoTable = SeguimientoBackend & {
+  animalNombre?: string;
+  adoptanteNombre?: string;
+}
+
+// Datos mock para desarrollo (se eliminarán cuando se integre completamente)
+const mockData: SeguimientoTable[] = [
     {
-        id: "seg_1",
-        animal: "Max",
-        adoptante: "Olivia Martin",
-        tipo: "Visita Domiciliaria",
-        fechaProxima: "2024-06-15",
+        seguimientoId: 1,
+        adopcionId: 1,
+        usuarioId: 1,
+        fechaSeguimiento: "2024-06-15",
         estado: "Activo",
+        observaciones: "Primera visita domiciliaria",
+        proximaSeguimiento: "2024-06-20",
+        animalNombre: "Max",
+        adoptanteNombre: "Olivia Martin",
     },
     {
-        id: "seg_2",
-        animal: "Luna",
-        adoptante: "Jackson Lee",
-        tipo: "Llamada Telefónica",
-        fechaProxima: "2024-06-20",
+        seguimientoId: 2,
+        adopcionId: 2,
+        usuarioId: 1,
+        fechaSeguimiento: "2024-06-10",
         estado: "Activo",
-    },
-    {
-        id: "seg_3",
-        animal: "Rocky",
-        adoptante: "Isabella Nguyen",
-        tipo: "Visita Domiciliaria",
-        fechaProxima: "2024-04-10",
-        estado: "Cerrado",
-    },
-    {
-        id: "seg_4",
-        animal: "Buddy",
-        adoptante: "William Kim",
-        tipo: "Correo Electrónico",
-        fechaProxima: "2024-07-01",
-        estado: "Activo",
+        observaciones: "Llamada telefónica de seguimiento",
+        proximaSeguimiento: "2024-06-25",
+        animalNombre: "Luna",
+        adoptanteNombre: "Jackson Lee",
     },
 ]
 
-export type Seguimiento = {
-  id: string
-  animal: string
-  adoptante: string
-  tipo: string
-  fechaProxima: string
-  estado: "Activo" | "Cerrado"
-}
-
-export const columns: ColumnDef<Seguimiento>[] = [
+export const columns: ColumnDef<SeguimientoTable>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -121,25 +112,21 @@ export const columns: ColumnDef<Seguimiento>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "adoptante",
+    accessorKey: "adoptanteNombre",
     header: "Adoptante",
     cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("adoptante")}</div>
+      <div className="font-medium">{row.getValue("adoptanteNombre")}</div>
     )
   },
   {
-    accessorKey: "animal",
+    accessorKey: "animalNombre",
     header: "Animal",
   },
   {
-    accessorKey: "tipo",
-    header: "Tipo de Seguimiento",
-  },
-  {
-    accessorKey: "fechaProxima",
-    header: "Próxima Interacción",
+    accessorKey: "fechaSeguimiento",
+    header: "Fecha de Seguimiento",
     cell: ({ row }) => {
-      const fecha = new Date(row.getValue("fechaProxima"))
+      const fecha = new Date(row.getValue("fechaSeguimiento"))
       return <div className="text-sm">{fecha.toLocaleDateString('es-ES')}</div>
     },
   },
@@ -197,25 +184,81 @@ export default function SeguimientoPage() {
   const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
-  const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<Seguimiento | null>(null)
+  const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<SeguimientoTable | null>(null)
 
-  const handleRegisterInteraction = (seguimiento: Seguimiento) => {
+  // Usar el hook de seguimientos
+  const { 
+    seguimientos, 
+    loading, 
+    error, 
+    fetchSeguimientos, 
+    deleteSeguimiento,
+    updateSeguimiento
+  } = useSeguimientos()
+
+  // Cargar datos al montar el componente
+  React.useEffect(() => {
+    fetchSeguimientos()
+  }, [fetchSeguimientos])
+
+  // Transformar datos del backend para la tabla
+  const tableData: SeguimientoTable[] = React.useMemo(() => {
+    if (!seguimientos || !Array.isArray(seguimientos)) {
+      return [];
+    }
+    
+    return seguimientos.map(seguimiento => ({
+      ...seguimiento,
+      animalNombre: seguimiento.adopcion?.animal?.nombre || 'N/A',
+      adoptanteNombre: seguimiento.adopcion?.adoptante ? 
+        `${seguimiento.adopcion.adoptante.nombres} ${seguimiento.adopcion.adoptante.apellidos}` : 
+        'N/A'
+    }))
+  }, [seguimientos])
+
+  const handleRegisterInteraction = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
     setIsRegisterOpen(true)
   }
 
-  const handleViewHistory = (seguimiento: Seguimiento) => {
+  const handleViewHistory = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
     setIsHistoryOpen(true)
   }
 
-  const handleFinishFollowUp = (seguimiento: Seguimiento) => {
+  const handleFinishFollowUp = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
     setIsConfirmOpen(true)
   }
 
+  const totalSeguimientos = tableData.length
+  const seguimientosActivos = tableData.filter(s => s.estado === 'Activo').length
+  const seguimientosCerrados = tableData.filter(s => s.estado === 'Cerrado').length
+
+  const handleConfirmFinish = async () => {
+    if (selectedSeguimiento) {
+      try {
+        await updateSeguimiento(selectedSeguimiento.seguimientoId, {
+          estado: 'Cerrado'
+        })
+        
+        setIsConfirmOpen(false)
+        setSelectedSeguimiento(null)
+        
+        toast.success('Seguimiento finalizado exitosamente')
+        
+        // Refrescar la lista
+        fetchSeguimientos()
+        
+      } catch (error) {
+        console.error('Error al finalizar seguimiento:', error)
+        toast.error('Error al finalizar el seguimiento')
+      }
+    }
+  }
+
   const table = useReactTable({
-    data,
+    data: tableData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -232,15 +275,86 @@ export default function SeguimientoPage() {
       rowSelection,
     },
     meta: {
-        handleRegisterInteraction,
-        handleViewHistory,
-        handleFinishFollowUp,
-    }
+      handleRegisterInteraction,
+      handleViewHistory,
+      handleFinishFollowUp,
+    },
   })
 
-  const totalSeguimientos = data.length
-  const seguimientosActivos = data.filter(s => s.estado === 'Activo').length
-  const seguimientosCerrados = data.filter(s => s.estado === 'Cerrado').length
+  // AHORA los returns condicionales después de todos los hooks
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Seguimiento</h2>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Activos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cerrados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Seguimientos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Seguimiento</h2>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={() => fetchSeguimientos()}>
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -300,9 +414,9 @@ export default function SeguimientoPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Buscar por adoptante o animal..."
-                value={(table.getColumn("adoptante")?.getFilterValue() as string) ?? ""}
+                value={(table.getColumn("adoptanteNombre")?.getFilterValue() as string) ?? ""}
                 onChange={(event) =>
-                  table.getColumn("adoptante")?.setFilterValue(event.target.value)
+                  table.getColumn("adoptanteNombre")?.setFilterValue(event.target.value)
                 }
                 className="pl-10"
               />
@@ -329,36 +443,42 @@ export default function SeguimientoPage() {
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
+                  {table.getHeaderGroups() && table.getHeaderGroups().length > 0 ? (
+                    table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers && headerGroup.headers.length > 0 ? (
+                          headerGroup.headers.map((header) => (
+                            <TableHead key={header.id}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          ))
+                        ) : null}
+                      </TableRow>
+                    ))
+                  ) : null}
                 </TableHeader>
                 <TableBody>
-                  {table.getRowModel().rows?.length ? (
+                  {table.getRowModel().rows && table.getRowModel().rows.length > 0 ? (
                     table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                       >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
+                        {row.getVisibleCells() && row.getVisibleCells().length > 0 ? (
+                          row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
+                            </TableCell>
+                          ))
+                        ) : null}
                       </TableRow>
                     ))
                   ) : (
@@ -378,28 +498,34 @@ export default function SeguimientoPage() {
           
           {/* Vista de Tarjetas para Móvil */}
           <div className="md:hidden space-y-3">
-            {table.getRowModel().rows.map((row) => {
-              const { adoptante, animal, fechaProxima, estado } = row.original
-              const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
+            {table.getRowModel().rows && table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => {
+                const { adoptanteNombre, animalNombre, fechaSeguimiento, estado } = row.original || {}
+                const actionsCell = row.getVisibleCells() && row.getVisibleCells().find(c => c.column.id === 'actions');
 
-              return (
-                <Card key={row.id}>
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{adoptante}</p>
-                      <p className="text-sm text-muted-foreground truncate">Animal: {animal}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Próx. contacto: {new Date(fechaProxima).toLocaleDateString('es-ES')}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge variant={estado === 'Activo' ? 'default' : 'secondary'}>{estado}</Badge>
-                      {actionsCell && flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                return (
+                  <Card key={row.id}>
+                    <CardContent className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{adoptanteNombre || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground truncate">Animal: {animalNombre || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Fecha de seguimiento: {fechaSeguimiento ? new Date(fechaSeguimiento).toLocaleDateString('es-ES') : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={estado === 'Activo' ? 'default' : 'secondary'}>{estado || 'N/A'}</Badge>
+                        {actionsCell && actionsCell.column && flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No se encontraron seguimientos.
+              </div>
+            )}
           </div>
 
           {/* Paginación */}
@@ -438,6 +564,7 @@ export default function SeguimientoPage() {
         isOpen={isConfirmOpen}
         setIsOpen={setIsConfirmOpen}
         seguimiento={selectedSeguimiento}
+        onConfirm={handleConfirmFinish}
       />
     </div>
   )
@@ -450,7 +577,7 @@ function RegistrarInteraccionDialog({
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    seguimiento: Seguimiento | null
+    seguimiento: SeguimientoTable | null
     }) {
     
     if (!seguimiento) return null
@@ -461,7 +588,7 @@ function RegistrarInteraccionDialog({
                 <DialogHeader>
                     <DialogTitle>Registrar Interacción</DialogTitle>
                     <DialogDescription>
-                        Para el seguimiento de <span className="font-semibold">{seguimiento.animal}</span> con <span className="font-semibold">{seguimiento.adoptante}</span>.
+                        Para el seguimiento de <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -510,7 +637,7 @@ function HistorialDialog({
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    seguimiento: Seguimiento | null
+    seguimiento: SeguimientoTable | null
     }) {
 
     if (!seguimiento) return null
@@ -521,7 +648,7 @@ function HistorialDialog({
                 <DialogHeader>
                     <DialogTitle>Historial de Seguimiento</DialogTitle>
                     <DialogDescription>
-                        Mostrando el historial para <span className="font-semibold">{seguimiento.animal}</span> con <span className="font-semibold">{seguimiento.adoptante}</span>.
+                        Mostrando el historial para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
@@ -554,10 +681,12 @@ function FinalizarDialog({
     isOpen,
     setIsOpen,
     seguimiento,
+    onConfirm,
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    seguimiento: Seguimiento | null
+    seguimiento: SeguimientoTable | null
+    onConfirm: () => void
     }) {
     
     if (!seguimiento) return null
@@ -568,13 +697,13 @@ function FinalizarDialog({
             <AlertDialogHeader>
             <AlertDialogTitle>¿Finalizar seguimiento?</AlertDialogTitle>
             <AlertDialogDescription>
-                Esta acción marcará el seguimiento de <span className="font-semibold">{seguimiento.animal}</span> como "Cerrado".
+                Esta acción marcará el seguimiento de <span className="font-semibold">{seguimiento.animalNombre}</span> como "Cerrado".
                 No podrás registrar nuevas interacciones. ¿Estás seguro?
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction>Confirmar y Finalizar</AlertDialogAction>
+                <AlertDialogAction onClick={onConfirm}>Confirmar y Finalizar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>
