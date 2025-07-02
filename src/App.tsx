@@ -13,6 +13,7 @@ import Seguimiento from "@/pages/dashboard/Seguimiento";
 import Perfil from "@/pages/dashboard/Perfil";
 import Configuracion from "@/pages/dashboard/Configuracion";
 import Usuarios from "@/pages/dashboard/Usuarios";
+import Organizaciones from "@/pages/dashboard/Organizaciones";
 import { RequireAuth, RequireAdmin } from "@/components/RequireAuth";
 
 function App() {
@@ -41,6 +42,11 @@ function App() {
           <Route path="usuarios" element={
             <RequireAdmin>
               <Usuarios />
+            </RequireAdmin>
+          } />
+          <Route path="organizaciones" element={
+            <RequireAdmin>
+              <Organizaciones />
             </RequireAdmin>
           } />
         </Route>

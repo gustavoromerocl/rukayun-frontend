@@ -5,6 +5,21 @@ export interface Comuna {
   nombre: string;
 }
 
+export interface Organizacion {
+  organizacionId: number;
+  nombre: string;
+  nombreContacto: string;
+  telefonoContacto: string;
+  emailContacto: string;
+  direccion: string;
+  fechaEliminacion: string | null;
+  comuna: {
+    comunaId: number;
+    nombre: string;
+  } | null;
+  usuariosId: number[];
+}
+
 export interface Usuario {
   usuarioId: number;
   username: string;
