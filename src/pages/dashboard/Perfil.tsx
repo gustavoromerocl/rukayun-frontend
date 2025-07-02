@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -33,10 +32,7 @@ import {
   Camera,
   Save,
   X,
-  Phone,
-  MapPin
 } from "lucide-react"
-import { LoadingScreen } from "@/components/LoadingScreen"
 import { toast } from "sonner"
 
 export default function PerfilPage() {
@@ -112,13 +108,6 @@ export default function PerfilPage() {
   }
 
   // Obtener el nombre de la comuna actual
-  const getComunaNombre = (comunaId: number | null) => {
-    if (!comunaId) return "";
-    const comuna = comunas.find(c => c.comunaId === comunaId);
-    return comuna ? comuna.nombre : "";
-  }
-
-  // Obtener el nombre de la comuna del usuario actual
   const getCurrentComunaNombre = () => {
     return usuario?.comuna?.nombre || "";
   }

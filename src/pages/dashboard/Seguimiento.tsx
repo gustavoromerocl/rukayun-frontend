@@ -62,32 +62,6 @@ export type SeguimientoTable = SeguimientoBackend & {
   adoptanteNombre?: string;
 }
 
-// Datos mock para desarrollo (se eliminarán cuando se integre completamente)
-const mockData: SeguimientoTable[] = [
-    {
-        seguimientoId: 1,
-        adopcionId: 1,
-        usuarioId: 1,
-        fechaSeguimiento: "2024-06-15",
-        estado: "Activo",
-        observaciones: "Primera visita domiciliaria",
-        proximaSeguimiento: "2024-06-20",
-        animalNombre: "Max",
-        adoptanteNombre: "Olivia Martin",
-    },
-    {
-        seguimientoId: 2,
-        adopcionId: 2,
-        usuarioId: 1,
-        fechaSeguimiento: "2024-06-10",
-        estado: "Activo",
-        observaciones: "Llamada telefónica de seguimiento",
-        proximaSeguimiento: "2024-06-25",
-        animalNombre: "Luna",
-        adoptanteNombre: "Jackson Lee",
-    },
-]
-
 export const columns: ColumnDef<SeguimientoTable>[] = [
   {
     id: "select",
@@ -192,7 +166,6 @@ export default function SeguimientoPage() {
     loading, 
     error, 
     fetchSeguimientos, 
-    deleteSeguimiento,
     updateSeguimiento
   } = useSeguimientos()
 
