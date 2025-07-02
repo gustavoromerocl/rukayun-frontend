@@ -31,6 +31,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useUsuarios } from "@/hooks/useUsuarios"
+import { UsuariosService } from "@/services/usuariosService"
+import { useApi } from "@/hooks/useApi"
+import { toast } from "sonner"
+import { useComunas } from "@/hooks/useComunas"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 function getInitials(nombres: string, apellidos: string) {
   const nombre = nombres?.split(" ")[0] || ""
@@ -44,9 +55,13 @@ export default function UsuariosOrgPage() {
   const [editData, setEditData] = useState<any>({})
   const [deactivateUser, setDeactivateUser] = useState<any | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [addData, setAddData] = useState<any>({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+  const [addData, setAddData] = useState<any>({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true })
+  const { comunas } = useComunas();
+  const [addLoading, setAddLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Hook real de usuarios
+  const apiClient = useApi();
   const { usuarios, loading, error, fetchUsuarios } = useUsuarios()
 
   const filtered = usuarios.filter(u =>
@@ -57,13 +72,38 @@ export default function UsuariosOrgPage() {
 
   const handleEdit = (usuario: any) => {
     setEditUser(usuario)
-    setEditData(usuario)
+    setEditData({
+      ...usuario,
+      email: usuario.email || usuario.username || '',
+    })
   }
 
-  const handleEditSave = () => {
-    // Implementa la lógica para guardar los cambios en el usuario
-    setEditUser(null)
-    setEditData({})
+  const handleEditSave = async () => {
+    if (!editUser) return;
+    setEditLoading(true);
+    try {
+      const usuariosService = new UsuariosService(apiClient);
+      const dataToSend = {
+        username: editData.email || editData.username,
+        nombres: editData.nombres,
+        apellidos: editData.apellidos,
+        activo: editData.activo,
+        direccion: editData.direccion || '',
+        telefono: editData.telefono || '',
+        telefono2: editData.telefono2 || null,
+        comunaId: editData.comunaId ? parseInt(editData.comunaId) : undefined,
+        email: editData.email,
+      };
+      await usuariosService.actualizarUsuario(editUser.usuarioId, dataToSend);
+      toast.success('Usuario actualizado exitosamente');
+      setEditUser(null);
+      setEditData({});
+      fetchUsuarios();
+    } catch (error) {
+      toast.error('Error al actualizar usuario');
+    } finally {
+      setEditLoading(false);
+    }
   }
 
   const handleEditCancel = () => {
@@ -88,13 +128,34 @@ export default function UsuariosOrgPage() {
 
   const handleAdd = () => {
     setAddOpen(true)
-    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true })
   }
 
-  const handleAddSave = () => {
-    // Implementa la lógica para agregar un nuevo usuario
-    setAddOpen(false)
-    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+  const handleAddSave = async () => {
+    setAddLoading(true);
+    try {
+      const usuariosService = new UsuariosService(apiClient);
+      const dataToSend = {
+        username: addData.email,
+        nombres: addData.nombres,
+        apellidos: addData.apellidos,
+        activo: true,
+        direccion: addData.direccion || '',
+        telefono: addData.telefono || '',
+        telefono2: addData.telefono2 || null,
+        comunaId: addData.comunaId ? parseInt(addData.comunaId) : undefined,
+        email: addData.email,
+      };
+      await usuariosService.crearUsuario(dataToSend);
+      toast.success('Usuario creado exitosamente');
+      setAddOpen(false);
+      setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true });
+      fetchUsuarios();
+    } catch (error) {
+      toast.error('Error al crear usuario');
+    } finally {
+      setAddLoading(false);
+    }
   }
 
   return (
@@ -208,43 +269,54 @@ export default function UsuariosOrgPage() {
           )}
         </CardContent>
       </Card>
-      {/* Modal de edición */}
+      {/* Modal de edición de usuario */}
       <Dialog open={!!editUser} onOpenChange={open => !open && handleEditCancel()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar usuario</DialogTitle>
-            <DialogDescription>Modifica los datos del usuario.</DialogDescription>
+            <DialogDescription>Modifica los datos del usuario seleccionado.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); handleEditSave(); }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombres</label>
-                <Input
-                  value={editData.nombres || ""}
-                  onChange={e => setEditData(ed => ({ ...ed, nombres: e.target.value }))}
-                  required
-                />
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleEditSave(); }}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Nombres *</label>
+                <Input value={editData.nombres || ''} onChange={e => setEditData((d: any) => ({ ...d, nombres: e.target.value }))} required />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Apellidos</label>
-                <Input
-                  value={editData.apellidos || ""}
-                  onChange={e => setEditData(ed => ({ ...ed, apellidos: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Apellidos *</label>
+                <Input value={editData.apellidos || ''} onChange={e => setEditData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Teléfono</label>
-              <Input
-                value={editData.telefono || ""}
-                onChange={e => setEditData(ed => ({ ...ed, telefono: e.target.value }))}
-                required
-              />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Email *</label>
+              <Input type="email" value={editData.email || ''} onChange={e => setEditData((d: any) => ({ ...d, email: e.target.value }))} required />
             </div>
-            <DialogFooter className="gap-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Teléfono</label>
+                <Input value={editData.telefono || ''} onChange={e => setEditData((d: any) => ({ ...d, telefono: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Dirección</label>
+                <Input value={editData.direccion || ''} onChange={e => setEditData((d: any) => ({ ...d, direccion: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Comuna</label>
+              <Select value={editData.comunaId || (editData.comuna?.comunaId?.toString() ?? '')} onValueChange={value => setEditData((d: any) => ({ ...d, comunaId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una comuna" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comunas.map(comuna => (
+                    <SelectItem key={comuna.comunaId} value={comuna.comunaId.toString()}>{comuna.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={handleEditCancel}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
+              <Button type="submit" disabled={editLoading}>{editLoading ? 'Guardando...' : 'Guardar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -275,65 +347,47 @@ export default function UsuariosOrgPage() {
             <DialogTitle>Añadir usuario</DialogTitle>
             <DialogDescription>Completa los datos para agregar un nuevo usuario.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); handleAddSave(); }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombres</label>
-                <Input
-                  value={addData.nombres || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, nombres: e.target.value }))}
-                  required
-                />
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleAddSave(); }}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Nombres *</label>
+                <Input value={addData.nombres} onChange={e => setAddData((d: any) => ({ ...d, nombres: e.target.value }))} required />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Apellidos</label>
-                <Input
-                  value={addData.apellidos || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, apellidos: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Apellidos *</label>
+                <Input value={addData.apellidos} onChange={e => setAddData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Teléfono</label>
-                <Input
-                  value={addData.telefono || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, telefono: e.target.value }))}
-                  required
-                />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Email *</label>
+              <Input type="email" value={addData.email} onChange={e => setAddData((d: any) => ({ ...d, email: e.target.value }))} required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Teléfono</label>
+                <Input value={addData.telefono} onChange={e => setAddData((d: any) => ({ ...d, telefono: e.target.value }))} />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input
-                  type="email"
-                  value={addData.email || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, email: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Dirección</label>
+                <Input value={addData.direccion} onChange={e => setAddData((d: any) => ({ ...d, direccion: e.target.value }))} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Comuna</label>
-                <Input
-                  value={addData.comuna || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, comuna: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Rol</label>
-                <Input
-                  value={addData.rol || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, rol: e.target.value }))}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Comuna</label>
+              <Select value={addData.comunaId || ''} onValueChange={value => setAddData((d: any) => ({ ...d, comunaId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una comuna" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comunas.map(comuna => (
+                    <SelectItem key={comuna.comunaId} value={comuna.comunaId.toString()}>{comuna.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter className="gap-2">
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
+              <Button type="submit" disabled={addLoading}>{addLoading ? 'Guardando...' : 'Guardar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
