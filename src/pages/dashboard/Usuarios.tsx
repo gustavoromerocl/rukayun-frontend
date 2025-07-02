@@ -30,84 +30,81 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-// Mock de usuarios basado en el modelo de datos
-const mockUsuarios = [
-  {
-    usuarioid: 1,
-    username: "admin.org@demo.com",
-    nombres: "Ana María",
-    apellidos: "Pérez Gómez",
-    email: "admin.org@demo.com",
-    activo: true,
-    fechaCreacion: "2023-01-10",
-    rol: "Administrador",
-    telefono: "+593991234567",
-    telefono2: "",
-    comuna: "Centro",
-  },
-  {
-    usuarioid: 2,
-    username: "carlos.rios@demo.com",
-    nombres: "Carlos",
-    apellidos: "Ríos Torres",
-    email: "carlos.rios@demo.com",
-    activo: true,
-    fechaCreacion: "2023-02-15",
-    rol: "Voluntario",
-    telefono: "+593987654321",
-    telefono2: "",
-    comuna: "Norte",
-  },
-  {
-    usuarioid: 3,
-    username: "lucia.mora@demo.com",
-    nombres: "Lucía",
-    apellidos: "Mora Castillo",
-    email: "lucia.mora@demo.com",
-    activo: false,
-    fechaCreacion: "2023-03-20",
-    rol: "Voluntario",
-    telefono: "+593912345678",
-    telefono2: "",
-    comuna: "Sur",
-  },
-]
-
-type Usuario = typeof mockUsuarios[number]
+import { useUsuarios } from "@/hooks/useUsuarios"
+import { UsuariosService } from "@/services/usuariosService"
+import { useApi } from "@/hooks/useApi"
+import { toast } from "sonner"
+import { useComunas } from "@/hooks/useComunas"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 function getInitials(nombres: string, apellidos: string) {
-  const nombre = nombres.split(" ")[0] || ""
-  const apellido = apellidos.split(" ")[1] || apellidos.split(" ")[0] || ""
+  const nombre = nombres?.split(" ")[0] || ""
+  const apellido = apellidos?.split(" ")[1] || apellidos?.split(" ")[0] || ""
   return `${nombre[0] || ""}${apellido[0] || ""}`.toUpperCase()
 }
 
 export default function UsuariosOrgPage() {
-  console.log('UsuariosOrgPage - Componente renderizado');
-  
-  const [usuarios, setUsuarios] = useState<Usuario[]>(mockUsuarios)
   const [search, setSearch] = useState("")
-  const [editUser, setEditUser] = useState<Usuario | null>(null)
-  const [editData, setEditData] = useState<Partial<Usuario>>({})
-  const [deactivateUser, setDeactivateUser] = useState<Usuario | null>(null)
+  const [editUser, setEditUser] = useState<any | null>(null)
+  const [editData, setEditData] = useState<any>({})
+  const [deactivateUser, setDeactivateUser] = useState<any | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [addData, setAddData] = useState<Partial<Usuario>>({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+  const [addData, setAddData] = useState<any>({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true })
+  const { comunas } = useComunas();
+  const [addLoading, setAddLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Hook real de usuarios
+  const apiClient = useApi();
+  const { usuarios, loading, error, fetchUsuarios } = useUsuarios()
 
   const filtered = usuarios.filter(u =>
-    u.nombres.toLowerCase().includes(search.toLowerCase()) ||
-    u.apellidos.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
+    (u.nombres?.toLowerCase() || "").includes(search.toLowerCase()) ||
+    (u.apellidos?.toLowerCase() || "").includes(search.toLowerCase()) ||
+    (u.email?.toLowerCase() || u.username?.toLowerCase() || "").includes(search.toLowerCase())
   )
 
-  const handleEdit = (usuario: Usuario) => {
+  const handleEdit = (usuario: any) => {
     setEditUser(usuario)
-    setEditData(usuario)
+    setEditData({
+      ...usuario,
+      email: usuario.email || usuario.username || '',
+      comunaId: usuario.comuna?.comunaId ?? ''
+    })
   }
 
-  const handleEditSave = () => {
-    setUsuarios(us => us.map(u => u.usuarioid === editUser?.usuarioid ? { ...u, ...editData } as Usuario : u))
-    setEditUser(null)
-    setEditData({})
+  const handleEditSave = async () => {
+    if (!editUser) return;
+    setEditLoading(true);
+    try {
+      const usuariosService = new UsuariosService(apiClient);
+      const dataToSend = {
+        username: editData.email || editData.username,
+        nombres: editData.nombres,
+        apellidos: editData.apellidos,
+        activo: editData.activo,
+        direccion: editData.direccion || '',
+        telefono: editData.telefono || '',
+        telefono2: editData.telefono2 || null,
+        comunaId: editData.comunaId ? parseInt(editData.comunaId) : undefined,
+        email: editData.email,
+      };
+      await usuariosService.actualizarUsuario(editUser.usuarioId, dataToSend);
+      toast.success('Usuario actualizado exitosamente');
+      setEditUser(null);
+      setEditData({});
+      fetchUsuarios();
+    } catch (error) {
+      toast.error('Error al actualizar usuario');
+    } finally {
+      setEditLoading(false);
+    }
   }
 
   const handleEditCancel = () => {
@@ -115,45 +112,51 @@ export default function UsuariosOrgPage() {
     setEditData({})
   }
 
-  const handleDeactivate = (usuario: Usuario) => {
+  const handleDeactivate = (usuario: any) => {
     setDeactivateUser(usuario)
   }
 
   const confirmDeactivate = () => {
     if (deactivateUser) {
-      setUsuarios(us => us.map(u => u.usuarioid === deactivateUser.usuarioid ? { ...u, activo: false } : u))
+      // Implementa la lógica para desactivar el usuario
       setDeactivateUser(null)
     }
   }
 
-  const handleReactivate = (usuario: Usuario) => {
-    setUsuarios(us => us.map(u => u.usuarioid === usuario.usuarioid ? { ...u, activo: true } : u))
+  const handleReactivate = (usuario: any) => {
+    // Implementa la lógica para reactivar el usuario
   }
 
   const handleAdd = () => {
     setAddOpen(true)
-    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true })
   }
 
-  const handleAddSave = () => {
-    setUsuarios(us => [
-      ...us,
-      {
-        usuarioid: Math.max(...us.map(u => u.usuarioid)) + 1,
-        username: addData.email || '',
-        nombres: addData.nombres || '',
-        apellidos: addData.apellidos || '',
-        email: addData.email || '',
+  const handleAddSave = async () => {
+    setAddLoading(true);
+    try {
+      const usuariosService = new UsuariosService(apiClient);
+      const dataToSend = {
+        username: addData.email,
+        nombres: addData.nombres,
+        apellidos: addData.apellidos,
         activo: true,
-        fechaCreacion: new Date().toISOString().slice(0, 10),
-        rol: addData.rol || 'Voluntario',
+        direccion: addData.direccion || '',
         telefono: addData.telefono || '',
-        telefono2: '',
-        comuna: addData.comuna || '',
-      }
-    ])
-    setAddOpen(false)
-    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comuna: '', rol: 'Voluntario', activo: true })
+        telefono2: addData.telefono2 || null,
+        comunaId: addData.comunaId ? parseInt(addData.comunaId) : undefined,
+        email: addData.email,
+      };
+      await usuariosService.crearUsuario(dataToSend);
+      toast.success('Usuario creado exitosamente');
+      setAddOpen(false);
+      setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true });
+      fetchUsuarios();
+    } catch (error) {
+      toast.error('Error al crear usuario');
+    } finally {
+      setAddLoading(false);
+    }
   }
 
   return (
@@ -163,7 +166,7 @@ export default function UsuariosOrgPage() {
           <h2 className="text-2xl font-bold flex items-center gap-2"><Users className="w-6 h-6" />Usuarios de la organización</h2>
           <p className="text-muted-foreground">Administra los usuarios que pertenecen a tu organización.</p>
         </div>
-        <Button onClick={handleAdd} className="w-full sm:w-auto">
+        <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
           <Users className="mr-2 h-4 w-4" /> Añadir usuario
         </Button>
       </div>
@@ -184,167 +187,137 @@ export default function UsuariosOrgPage() {
               />
             </div>
           </div>
-          {/* Vista de tabla para escritorio */}
-          <table className="min-w-full text-sm hidden md:table">
-            <thead>
-              <tr className="border-b">
-                <th className="py-2 px-3 text-left">Avatar</th>
-                <th className="py-2 px-3 text-left">Nombre</th>
-                <th className="py-2 px-3 text-left">Email</th>
-                <th className="py-2 px-3 text-left">Teléfono</th>
-                <th className="py-2 px-3 text-left">Comuna</th>
-                <th className="py-2 px-3 text-left">Rol</th>
-                <th className="py-2 px-3 text-left">Estado</th>
-                <th className="py-2 px-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(usuario => (
-                <tr key={usuario.usuarioid} className="border-b hover:bg-muted/50">
-                  <td className="py-2 px-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>{getInitials(usuario.nombres, usuario.apellidos)}</AvatarFallback>
-                    </Avatar>
-                  </td>
-                  <td className="py-2 px-3 font-medium">
-                    {usuario.nombres}
-                    <br />
-                    <span className="text-muted-foreground text-xs">{usuario.apellidos}</span>
-                  </td>
-                  <td className="py-2 px-3">{usuario.email}</td>
-                  <td className="py-2 px-3">{usuario.telefono}</td>
-                  <td className="py-2 px-3">{usuario.comuna}</td>
-                  <td className="py-2 px-3">{usuario.rol}</td>
-                  <td className="py-2 px-3">
-                    <Badge variant={usuario.activo ? "secondary" : "destructive"}>
-                      {usuario.activo ? (
-                        <span className="flex items-center gap-1"><CheckCircle className="w-4 h-4 text-green-600" />Activo</span>
-                      ) : (
-                        <span className="flex items-center gap-1"><XCircle className="w-4 h-4 text-red-600" />Inactivo</span>
-                      )}
-                    </Badge>
-                  </td>
-                  <td className="py-2 px-3 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="w-5 h-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEdit(usuario)}>
-                          <Edit className="w-4 h-4 mr-2" /> Editar
-                        </DropdownMenuItem>
-                        {usuario.activo ? (
-                          <DropdownMenuItem onClick={() => handleDeactivate(usuario)}>
-                            <XCircle className="w-4 h-4 mr-2 text-red-600" /> Desactivar
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handleReactivate(usuario)}>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Reactivar
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
+          {/* Loading y error */}
+          {loading && (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-200 rounded animate-pulse"></div>
               ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="text-center py-6 text-muted-foreground">No se encontraron usuarios.</td>
+            </div>
+          )}
+          {error && (
+            <div className="text-center text-red-600 py-4">
+              Error al cargar los usuarios: {error}
+              <Button onClick={fetchUsuarios} className="ml-4">Reintentar</Button>
+            </div>
+          )}
+          {/* Vista de tabla para escritorio */}
+          {!loading && !error && (
+            <table className="min-w-full text-sm hidden md:table">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-2 px-3 text-left">Avatar</th>
+                  <th className="py-2 px-3 text-left">Nombre</th>
+                  <th className="py-2 px-3 text-left">Email</th>
+                  <th className="py-2 px-3 text-left">Teléfono</th>
+                  <th className="py-2 px-3 text-left">Comuna</th>
+                  <th className="py-2 px-3 text-left">Rol</th>
+                  <th className="py-2 px-3 text-left">Estado</th>
+                  <th className="py-2 px-3 text-right">Acciones</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* Vista de tarjetas para móvil */}
-          <div className="md:hidden space-y-3">
-            {filtered.map(usuario => (
-              <Card key={usuario.usuarioid} className="w-full">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback>{getInitials(usuario.nombres, usuario.apellidos)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{usuario.nombres} <span className="text-muted-foreground text-xs font-normal">{usuario.apellidos}</span></div>
-                    <div className="text-xs text-muted-foreground truncate">{usuario.email}</div>
-                    <div className="text-xs text-muted-foreground">{usuario.rol} - {usuario.comuna}</div>
-                    <Badge variant={usuario.activo ? "secondary" : "destructive"} className="mt-1">
-                      {usuario.activo ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-5 h-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleEdit(usuario)}>
-                        <Edit className="w-4 h-4 mr-2" /> Editar
-                      </DropdownMenuItem>
+              </thead>
+              <tbody>
+                {filtered.map(usuario => (
+                  <tr key={usuario.usuarioId} className="border-b">
+                    <td className="py-2 px-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>{getInitials(usuario.nombres, usuario.apellidos)}</AvatarFallback>
+                      </Avatar>
+                    </td>
+                    <td className="py-2 px-3 font-medium">
+                      {usuario.nombres} {usuario.apellidos}
+                    </td>
+                    <td className="py-2 px-3">{usuario.email || usuario.username}</td>
+                    <td className="py-2 px-3">{usuario.telefono || '-'}</td>
+                    <td className="py-2 px-3">{usuario.comuna?.nombre || '-'}</td>
+                    <td className="py-2 px-3">
+                      <Badge>{usuario.rol}</Badge>
+                    </td>
+                    <td className="py-2 px-3">
                       {usuario.activo ? (
-                        <DropdownMenuItem onClick={() => handleDeactivate(usuario)}>
-                          <XCircle className="w-4 h-4 mr-2 text-red-600" /> Desactivar
-                        </DropdownMenuItem>
+                        <Badge variant="secondary"><CheckCircle className="inline w-4 h-4 mr-1" />Activo</Badge>
                       ) : (
-                        <DropdownMenuItem onClick={() => handleReactivate(usuario)}>
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Reactivar
-                        </DropdownMenuItem>
+                        <Badge variant="destructive"><XCircle className="inline w-4 h-4 mr-1" />Inactivo</Badge>
                       )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
-            ))}
-            {filtered.length === 0 && (
-              <div className="h-24 text-center content-center text-muted-foreground">
-                No se encontraron usuarios.
-              </div>
-            )}
-          </div>
+                    </td>
+                    <td className="py-2 px-3 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEdit(usuario)}>
+                            <Edit className="mr-2 h-4 w-4" />Editar
+                          </DropdownMenuItem>
+                          {/* Aquí puedes agregar más acciones como desactivar, eliminar, etc. */}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No se encontraron usuarios.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
-
-      {/* Modal de edición */}
+      {/* Modal de edición de usuario */}
       <Dialog open={!!editUser} onOpenChange={open => !open && handleEditCancel()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar usuario</DialogTitle>
-            <DialogDescription>Modifica los datos del usuario.</DialogDescription>
+            <DialogDescription>Modifica los datos del usuario seleccionado.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); handleEditSave(); }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombres</label>
-                <Input
-                  value={editData.nombres || ""}
-                  onChange={e => setEditData(ed => ({ ...ed, nombres: e.target.value }))}
-                  required
-                />
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleEditSave(); }}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Nombres *</label>
+                <Input value={editData.nombres || ''} onChange={e => setEditData((d: any) => ({ ...d, nombres: e.target.value }))} required />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Apellidos</label>
-                <Input
-                  value={editData.apellidos || ""}
-                  onChange={e => setEditData(ed => ({ ...ed, apellidos: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Apellidos *</label>
+                <Input value={editData.apellidos || ''} onChange={e => setEditData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Teléfono</label>
-              <Input
-                value={editData.telefono || ""}
-                onChange={e => setEditData(ed => ({ ...ed, telefono: e.target.value }))}
-                required
-              />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Email *</label>
+              <Input type="email" value={editData.email || ''} onChange={e => setEditData((d: any) => ({ ...d, email: e.target.value }))} required />
             </div>
-            <DialogFooter className="gap-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Teléfono</label>
+                <Input value={editData.telefono || ''} onChange={e => setEditData((d: any) => ({ ...d, telefono: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Dirección</label>
+                <Input value={editData.direccion || ''} onChange={e => setEditData((d: any) => ({ ...d, direccion: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Comuna</label>
+              <Select value={editData.comunaId ? String(editData.comunaId) : ''} onValueChange={value => setEditData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una comuna" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comunas.map(comuna => (
+                    <SelectItem key={comuna.comunaId} value={comuna.comunaId.toString()}>{comuna.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={handleEditCancel}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
+              <Button type="submit" disabled={editLoading}>{editLoading ? 'Guardando...' : 'Guardar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -375,65 +348,47 @@ export default function UsuariosOrgPage() {
             <DialogTitle>Añadir usuario</DialogTitle>
             <DialogDescription>Completa los datos para agregar un nuevo usuario.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); handleAddSave(); }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombres</label>
-                <Input
-                  value={addData.nombres || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, nombres: e.target.value }))}
-                  required
-                />
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleAddSave(); }}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Nombres *</label>
+                <Input value={addData.nombres} onChange={e => setAddData((d: any) => ({ ...d, nombres: e.target.value }))} required />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Apellidos</label>
-                <Input
-                  value={addData.apellidos || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, apellidos: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Apellidos *</label>
+                <Input value={addData.apellidos} onChange={e => setAddData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Teléfono</label>
-                <Input
-                  value={addData.telefono || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, telefono: e.target.value }))}
-                  required
-                />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Email *</label>
+              <Input type="email" value={addData.email} onChange={e => setAddData((d: any) => ({ ...d, email: e.target.value }))} required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Teléfono</label>
+                <Input value={addData.telefono} onChange={e => setAddData((d: any) => ({ ...d, telefono: e.target.value }))} />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input
-                  type="email"
-                  value={addData.email || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, email: e.target.value }))}
-                  required
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Dirección</label>
+                <Input value={addData.direccion} onChange={e => setAddData((d: any) => ({ ...d, direccion: e.target.value }))} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Comuna</label>
-                <Input
-                  value={addData.comuna || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, comuna: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Rol</label>
-                <Input
-                  value={addData.rol || ""}
-                  onChange={e => setAddData(ad => ({ ...ad, rol: e.target.value }))}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Comuna</label>
+              <Select value={addData.comunaId ? String(addData.comunaId) : ''} onValueChange={value => setAddData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una comuna" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comunas.map(comuna => (
+                    <SelectItem key={comuna.comunaId} value={comuna.comunaId.toString()}>{comuna.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter className="gap-2">
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
+              <Button type="submit" disabled={addLoading}>{addLoading ? 'Guardando...' : 'Guardar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

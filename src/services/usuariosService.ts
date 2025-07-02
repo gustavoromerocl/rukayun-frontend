@@ -80,4 +80,20 @@ export class UsuariosService {
   async obtenerComunas(): Promise<Comuna[]> {
     return this.apiClient.get<Comuna[]>('/comunas');
   }
+
+  // Listar usuarios (opcionalmente por organización)
+  async listarUsuarios(organizacionId?: number): Promise<Usuario[]> {
+    const query = organizacionId ? `?organizacionId=${organizacionId}` : '';
+    return this.apiClient.get<Usuario[]>(`/usuarios${query}`);
+  }
+
+  // Crear usuario
+  async crearUsuario(data: Partial<Usuario>): Promise<Usuario> {
+    return this.apiClient.post<Usuario>('/usuarios', data);
+  }
+
+  // Actualizar usuario por ID
+  async actualizarUsuario(usuarioId: number, data: Partial<Usuario>): Promise<Usuario> {
+    return this.apiClient.put<Usuario>(`/usuarios/${usuarioId}`, data);
+  }
 } 
