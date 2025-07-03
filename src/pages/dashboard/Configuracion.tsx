@@ -10,14 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ModeToggle } from "@/components/mode-toggle"
 import { Switch } from "@/components/ui/switch"
 import { useOrganizaciones } from "@/hooks/useOrganizaciones"
-import { useComunas } from "@/hooks/useComunas"
 import { toast } from "sonner"
 import { Loader2, Lock } from "lucide-react"
 
 export default function Configuracion() {
   const [activeTab, setActiveTab] = React.useState("perfil")
   const { obtenerMiOrganizacion } = useOrganizaciones()
-  const { comunas } = useComunas()
   const [miOrganizacion, setMiOrganizacion] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
