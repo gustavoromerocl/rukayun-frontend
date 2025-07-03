@@ -191,7 +191,6 @@ export default function UsuariosOrgPage() {
                   <th className="py-2 px-3 text-left">Email</th>
                   <th className="py-2 px-3 text-left">Teléfono</th>
                   <th className="py-2 px-3 text-left">Comuna</th>
-                  <th className="py-2 px-3 text-left">Rol</th>
                   <th className="py-2 px-3 text-left">Estado</th>
                   <th className="py-2 px-3 text-right">Acciones</th>
                 </tr>
@@ -210,9 +209,6 @@ export default function UsuariosOrgPage() {
                     <td className="py-2 px-3">{usuario.email || usuario.username}</td>
                     <td className="py-2 px-3">{usuario.telefono || '-'}</td>
                     <td className="py-2 px-3">{usuario.comuna?.nombre || '-'}</td>
-                    <td className="py-2 px-3">
-                      <Badge>{usuario.rol}</Badge>
-                    </td>
                     <td className="py-2 px-3">
                       {usuario.activo ? (
                         <Badge variant="secondary"><CheckCircle className="inline w-4 h-4 mr-1" />Activo</Badge>
@@ -240,7 +236,7 @@ export default function UsuariosOrgPage() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
                       No se encontraron usuarios.
                     </td>
                   </tr>
