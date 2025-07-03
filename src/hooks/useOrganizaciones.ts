@@ -113,6 +113,16 @@ export function useOrganizaciones() {
     }
   }, [apiClient]);
 
+  const obtenerMiOrganizacion = useCallback(async () => {
+    try {
+      const organizacionesService = new OrganizacionesService(apiClient);
+      return await organizacionesService.obtenerMiOrganizacion();
+    } catch (error) {
+      console.error('Error obteniendo mi organización:', error);
+      throw error;
+    }
+  }, [apiClient]);
+
   useEffect(() => {
     fetchOrganizaciones();
   }, [fetchOrganizaciones]);
@@ -129,5 +139,6 @@ export function useOrganizaciones() {
     removerUsuarioDeOrganizacion,
     obtenerUsuariosDeOrganizacion,
     obtenerTodosLosUsuarios,
+    obtenerMiOrganizacion
   };
 } 

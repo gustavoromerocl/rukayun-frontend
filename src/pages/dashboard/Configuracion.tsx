@@ -9,9 +9,38 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Switch } from "@/components/ui/switch"
+import { useOrganizaciones } from "@/hooks/useOrganizaciones"
+import { useComunas } from "@/hooks/useComunas"
+import { toast } from "sonner"
+import { Loader2, Lock } from "lucide-react"
 
 export default function Configuracion() {
   const [activeTab, setActiveTab] = React.useState("perfil")
+  const { obtenerMiOrganizacion } = useOrganizaciones()
+  const { comunas } = useComunas()
+  const [miOrganizacion, setMiOrganizacion] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  // Cargar datos de mi organización al montar el componente
+  React.useEffect(() => {
+    const cargarMiOrganizacion = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const organizacion = await obtenerMiOrganizacion()
+        setMiOrganizacion(organizacion)
+      } catch (err) {
+        console.error('Error cargando mi organización:', err)
+        setError('Error al cargar los datos de la organización')
+        toast.error('Error al cargar los datos de la organización')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    cargarMiOrganizacion()
+  }, [obtenerMiOrganizacion])
 
   return (
     <div className="space-y-6">
@@ -39,39 +68,68 @@ export default function Configuracion() {
           {activeTab === 'perfil' && (
             <Card>
               <CardHeader>
-                <CardTitle>Perfil de la Organización</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="w-5 h-5" />
+                  Perfil de la Organización
+                </CardTitle>
                 <CardDescription>
-                  Actualiza la información pública de tu refugio.
+                  Información de tu organización (solo lectura).
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="org-name">Nombre del Refugio</Label>
-                  <Input id="org-name" defaultValue="Refugio Esperanza" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-email">Email de Contacto</Label>
-                  <Input id="org-email" type="email" defaultValue="contacto@esperanza.org" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-phone">Teléfono</Label>
-                  <Input id="org-phone" type="tel" defaultValue="+56 9 1234 5678" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-address">Dirección</Label>
-                  <Input id="org-address" defaultValue="Av. Siempre Viva 742, Santiago" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-description">Descripción Breve</Label>
-                  <Textarea
-                    id="org-description"
-                    placeholder="Cuéntanos sobre tu refugio..."
-                    defaultValue="Somos un refugio dedicado a rescatar, rehabilitar y encontrar hogares amorosos para animales en situación de calle."
-                  />
-                </div>
+                {loading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    <span>Cargando datos de la organización...</span>
+                  </div>
+                )}
+                
+                {error && (
+                  <div className="text-center text-red-600 py-4">
+                    <p>{error}</p>
+                    <Button onClick={() => window.location.reload()} className="mt-2">
+                      Reintentar
+                    </Button>
+                  </div>
+                )}
+
+                {!loading && !error && miOrganizacion && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-name">Nombre del Refugio</Label>
+                      <Input id="org-name" value={miOrganizacion.nombre} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-email">Email de Contacto</Label>
+                      <Input id="org-email" type="email" value={miOrganizacion.emailContacto} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-phone">Teléfono</Label>
+                      <Input id="org-phone" type="tel" value={miOrganizacion.telefonoContacto} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-address">Dirección</Label>
+                      <Input id="org-address" value={miOrganizacion.direccion} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-comuna">Comuna</Label>
+                      <Input id="org-comuna" value={miOrganizacion.comuna?.nombre || 'No especificada'} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-description">Descripción Breve</Label>
+                      <Textarea
+                        id="org-description"
+                        value="Información de la organización obtenida del sistema."
+                        disabled
+                      />
+                    </div>
+                  </>
+                )}
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button>Guardar Cambios</Button>
+                <div className="text-sm text-muted-foreground">
+                  Los datos de la organización son administrados por el sistema.
+                </div>
               </CardFooter>
             </Card>
           )}
