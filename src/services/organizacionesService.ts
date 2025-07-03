@@ -52,4 +52,10 @@ export class OrganizacionesService {
   async obtenerTodosLosUsuarios(): Promise<Usuario[]> {
     return this.apiClient.get<Usuario[]>('/usuarios');
   }
+
+  // Obtener mi organización (para usuarios que pertenecen a una organización)
+  async obtenerMiOrganizacion(): Promise<Organizacion> {
+    const response = await this.apiClient.get<Organizacion[]>('/organizaciones/me');
+    return response[0]; // El endpoint devuelve un array, tomamos el primer elemento
+  }
 } 
