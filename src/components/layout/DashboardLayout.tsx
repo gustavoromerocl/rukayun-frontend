@@ -32,10 +32,12 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const { instance, accounts } = useMsal();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isColaborator } = useAppStore();
+  const { isColaborator, setUser, setIsColaborator } = useAppStore();
   const { loading: authLoading } = useAuth();
 
   const handleLogout = () => {
+    setUser(null);
+    setIsColaborator(false);
     instance.logoutPopup().then(() => {
       navigate("/");
     });
