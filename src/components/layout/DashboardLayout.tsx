@@ -20,6 +20,7 @@ const colaboratorNavItems = [
 // Menú para usuarios adoptantes (USER)
 const userNavItems = [
   { label: "Mi Dashboard", to: "/dashboard", icon: Home },
+  { label: "Mascotas", to: "/dashboard/animales", icon: PawPrint },
   { label: "Mis Solicitudes", to: "/dashboard/solicitudes", icon: ClipboardList },
   { label: "Mis Seguimientos", to: "/dashboard/seguimiento", icon: FileText },
   { label: "Mi Perfil", to: "/dashboard/perfil", icon: User },

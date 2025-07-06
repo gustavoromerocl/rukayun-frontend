@@ -17,6 +17,7 @@ import {
 } from "@tanstack/react-table"
 import { MoreHorizontal, Plus, Search, PawPrint, Eye, Edit, Trash2, Columns } from "lucide-react"
 import { toast } from "sonner"
+import { useMsal } from "@azure/msal-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -67,8 +68,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAnimales } from "@/hooks/useAnimales"
+import { useAppStore } from "@/lib/store"
+import { useAuth } from "@/hooks/useAuth"
 import type { Animal } from "@/services/animalesService"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { AnimalCard } from "@/components/AnimalCard"
+import { useApi } from "@/hooks/useApi"
+import { AdopcionesService } from "@/services/adopcionesService"
+import { Textarea } from "@/components/ui/textarea"
 
 // Tipos actualizados para coincidir con la API real
 export type AnimalTable = Animal
@@ -247,6 +254,16 @@ export default function AnimalesPage() {
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
   const [selectedAnimal, setSelectedAnimal] = React.useState<AnimalTable | null>(null)
   const [refreshTrigger, setRefreshTrigger] = React.useState(0)
+  const [searchTerm, setSearchTerm] = React.useState("")
+
+  // Estado para modal de adopción
+  const [adopcionModalOpen, setAdopcionModalOpen] = React.useState(false);
+  const [animalAdopcion, setAnimalAdopcion] = React.useState<AnimalTable | null>(null);
+  const [descripcionFamilia, setDescripcionFamilia] = React.useState("");
+
+  // Hooks para roles y datos
+  const { isColaborator } = useAppStore()
+  const { usuario } = useAuth()
 
   // Usar el hook de animales
   const { 
@@ -254,8 +271,15 @@ export default function AnimalesPage() {
     loading, 
     error, 
     fetchAnimales, 
-    deleteAnimal
+    deleteAnimal,
+    createAnimal,
+    updateAnimal
   } = useAnimales()
+
+  const { accounts, instance } = useMsal()
+  const { user } = useAppStore()
+  const apiClient = useApi()
+  const adopcionesService = new AdopcionesService(apiClient)
 
   // Cargar datos al montar el componente
   React.useEffect(() => {
@@ -322,6 +346,45 @@ export default function AnimalesPage() {
     }
   }
 
+  // Handler para abrir modal
+  const handleOpenAdopcionModal = (animal: AnimalTable) => {
+    setAnimalAdopcion(animal);
+    setDescripcionFamilia("");
+    setAdopcionModalOpen(true);
+  };
+
+  // Handler para enviar solicitud desde el modal
+  const handleEnviarSolicitud = async () => {
+    if (!animalAdopcion) return;
+    try {
+      if (!accounts || accounts.length === 0) {
+        toast.error("Debes iniciar sesión para solicitar una adopción.");
+        return;
+      }
+      const tokenResponse = await instance.acquireTokenSilent({
+        account: accounts[0],
+        scopes: ["openid", "profile", "email"]
+      });
+      const accessToken = tokenResponse.accessToken;
+      const usuarioId = user?.usuarioId;
+      if (!usuarioId) {
+        toast.error("No se pudo obtener el usuarioId. Intenta recargar la página.");
+        return;
+      }
+      await adopcionesService.solicitarAdopcion({
+        usuarioId,
+        animalId: animalAdopcion.animalId,
+        descripcionFamilia: descripcionFamilia.trim()
+      }, accessToken);
+      toast.success("¡Solicitud de adopción enviada exitosamente!");
+      setAdopcionModalOpen(false);
+      setAnimalAdopcion(null);
+      setDescripcionFamilia("");
+    } catch (err: any) {
+      toast.error(err?.message || "Error al enviar la solicitud de adopción.");
+    }
+  };
+
   // Configurar handlers para las columnas
   React.useEffect(() => {
     columnHandlers.setHandlers({
@@ -360,7 +423,9 @@ export default function AnimalesPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Animales</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Animales" : "Mascotas Disponibles"}
+          </h2>
         </div>
         
         <div className="grid gap-4 md:grid-cols-4">
@@ -400,7 +465,9 @@ export default function AnimalesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Animales</CardTitle>
+            <CardTitle>
+              {isColaborator ? "Animales" : "Mascotas"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -418,7 +485,9 @@ export default function AnimalesPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Animales</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Animales" : "Mascotas Disponibles"}
+          </h2>
         </div>
         
         <Card>
@@ -441,16 +510,21 @@ export default function AnimalesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Gestión de Animales
+            {isColaborator ? "Gestión de Animales" : "Mascotas Disponibles"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Administra todos los animales del refugio.
+            {isColaborator 
+              ? "Administra todos los animales del refugio."
+              : "Encuentra tu compañero perfecto para la adopción."
+            }
           </p>
         </div>
-        <Button onClick={handleAddNew} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Añadir Animal
-        </Button>
+        {isColaborator && (
+          <Button onClick={handleAddNew} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Añadir Animal
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -505,170 +579,170 @@ export default function AnimalesPage() {
         </Card>
       </div>
 
-      {/* Filtros y tabla */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Animales</CardTitle>
-          <CardDescription>
-            Gestiona todos los animales del refugio. Puedes filtrar, editar y eliminar registros.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Filtros */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Buscar por nombre..."
-                value={(table.getColumn("nombre")?.getFilterValue() as string) ?? ""}
-                onChange={(event) =>
-                  table.getColumn("nombre")?.setFilterValue(event.target.value)
+      {/* Vista según el rol del usuario */}
+      {isColaborator ? (
+        // Vista administrativa para colaboradores
+        <Card>
+          <CardHeader>
+            <CardTitle>Lista de Animales</CardTitle>
+            <CardDescription>
+              Gestiona todos los animales del refugio. Puedes filtrar, editar y eliminar registros.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Filtros */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Buscar por nombre..."
+                  value={(table.getColumn("nombre")?.getFilterValue() as string) ?? ""}
+                  onChange={(event) =>
+                    table.getColumn("nombre")?.setFilterValue(event.target.value)
+                  }
+                  className="pl-10"
+                />
+              </div>
+              <Select
+                value={(table.getColumn("especie")?.getFilterValue() as string) ?? "all"}
+                onValueChange={(value) =>
+                  table.getColumn("especie")?.setFilterValue(value === "all" ? "" : value)
                 }
-                className="pl-10"
-              />
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filtrar por especie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las especies</SelectItem>
+                  <SelectItem value="Perro">Perros</SelectItem>
+                  <SelectItem value="Gato">Gatos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={(table.getColumn("publicado")?.getFilterValue() as string) ?? "all"}
+                onValueChange={(value) =>
+                  table.getColumn("publicado")?.setFilterValue(value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="true">Publicados</SelectItem>
+                  <SelectItem value="false">Borradores</SelectItem>
+                </SelectContent>
+              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    <Columns className="mr-2 h-4 w-4" />
+                    Columnas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      const columnNames: Record<string, string> = {
+                        peso: "Peso",
+                        fechaNacimiento: "Fecha de Nacimiento",
+                        tamano: "Tamaño",
+                        sexo: "Sexo",
+                        especie: "Especie",
+                        publicado: "Estado",
+                      }
+                      
+                      return (
+                        <DropdownMenuItem
+                          key={column.id}
+                          className="capitalize"
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <Checkbox
+                            checked={column.getIsVisible()}
+                            onCheckedChange={(value) =>
+                              column.toggleVisibility(!!value)
+                            }
+                            aria-label={`Toggle ${column.id}`}
+                          />
+                          <span className="ml-2">{columnNames[column.id] || column.id}</span>
+                        </DropdownMenuItem>
+                      )
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Select
-              value={(table.getColumn("especie")?.getFilterValue() as string) ?? "all"}
-              onValueChange={(value) =>
-                table.getColumn("especie")?.setFilterValue(value === "all" ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filtrar por especie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las especies</SelectItem>
-                <SelectItem value="Perro">Perros</SelectItem>
-                <SelectItem value="Gato">Gatos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={(table.getColumn("publicado")?.getFilterValue() as string) ?? "all"}
-              onValueChange={(value) =>
-                table.getColumn("publicado")?.setFilterValue(value === "all" ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="true">Publicados</SelectItem>
-                <SelectItem value="false">Borradores</SelectItem>
-              </SelectContent>
-            </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Columns className="mr-2 h-4 w-4" />
-                  Columnas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    const columnNames: Record<string, string> = {
-                      peso: "Peso",
-                      fechaNacimiento: "Fecha de Nacimiento",
-                      tamano: "Tamaño",
-                      sexo: "Sexo",
-                      especie: "Especie",
-                      publicado: "Estado",
-                    }
-                    
-                    return (
-                      <DropdownMenuItem
-                        key={column.id}
-                        className="capitalize"
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Checkbox
-                          checked={column.getIsVisible()}
-                          onCheckedChange={(value) =>
-                            column.toggleVisibility(!!value)
-                          }
-                          aria-label={`Toggle ${column.id}`}
-                        />
-                        <span className="ml-2">{columnNames[column.id] || column.id}</span>
-                      </DropdownMenuItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
-          {/* Vistas de Tabla y Tarjetas */}
-          
-          {/* Vista de Tabla para pantallas medianas y grandes */}
-          <div className="hidden md:block">
-            <div className="rounded-md border">
-              <div className="relative w-full overflow-auto">
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => {
-                          return (
-                            <TableHead key={header.id}>
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                            </TableHead>
-                          )
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          data-state={row.getIsSelected() && "selected"}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
-                            </TableCell>
-                          ))}
+            {/* Vista de Tabla para pantallas medianas y grandes */}
+            <div className="hidden md:block">
+              <div className="rounded-md border">
+                <div className="relative w-full overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            return (
+                              <TableHead key={header.id}>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                              </TableHead>
+                            )
+                          })}
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={columns.length}
-                          className="h-24 text-center"
-                        >
-                          No se encontraron animales.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {table.getRowModel().rows?.length ? (
+                        table.getRowModel().rows.map((row) => (
+                          <TableRow
+                            key={row.id}
+                            data-state={row.getIsSelected() && "selected"}
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id}>
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext()
+                                )}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={columns.length}
+                            className="h-24 text-center"
+                          >
+                            No se encontraron animales.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Vista de Tarjetas para pantallas pequeñas */}
-          <div className="md:hidden space-y-3">
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const selectCell = row.getVisibleCells().find(c => c.column.id === 'select');
-                const photoCell = row.getVisibleCells().find(c => c.column.id === 'animalImagenes');
-                const statusCell = row.getVisibleCells().find(c => c.column.id === 'publicado');
-                const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
+            {/* Vista de Tarjetas para pantallas pequeñas */}
+            <div className="md:hidden space-y-3">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => {
+                  const selectCell = row.getVisibleCells().find(c => c.column.id === 'select');
+                  const photoCell = row.getVisibleCells().find(c => c.column.id === 'animalImagenes');
+                  const statusCell = row.getVisibleCells().find(c => c.column.id === 'publicado');
+                  const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
 
-                return (
-                  <Card key={row.id} className="w-full">
-                    <CardContent className="p-3 flex items-center justify-between gap-3">
+                  return (
+                    <Card key={row.id} className="w-full">
+                      <CardContent className="p-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {selectCell && flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}
                         {photoCell && flexRender(photoCell.column.columnDef.cell, photoCell.getContext())}
@@ -719,6 +793,77 @@ export default function AnimalesPage() {
           </div>
         </CardContent>
       </Card>
+      ) : (
+        // Vista de cards para usuarios adoptantes
+        <Card>
+          <CardHeader>
+            <CardTitle>Mascotas Disponibles</CardTitle>
+            <CardDescription>
+              Explora las mascotas disponibles para adopción. Encuentra tu compañero perfecto.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Filtros simples */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Buscar mascotas..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select
+                value="all"
+                onValueChange={(value) => {
+                  // Aquí podrías implementar filtros adicionales
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Todas las especies" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las especies</SelectItem>
+                  <SelectItem value="perro">Perros</SelectItem>
+                  <SelectItem value="gato">Gatos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Grid de cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {animales
+                .filter(animal => animal.publicado) // Solo mostrar animales publicados
+                .filter(animal => 
+                  searchTerm === "" || 
+                  animal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  animal.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((animal) => {
+                  const imagenUrl = animal.animalImagenes.length > 0 
+                    ? animal.animalImagenes[0].url 
+                    : undefined;
+                  
+                  return (
+                    <AnimalCard
+                      key={animal.animalId}
+                      animal={animal}
+                      onAdopt={handleOpenAdopcionModal}
+                      onDetails={handleViewDetails}
+                    />
+                  );
+                })}
+            </div>
+
+            {animales.filter(animal => animal.publicado).length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No hay mascotas disponibles en este momento.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Diálogos */}
       <AnimalFormDialog
@@ -738,6 +883,58 @@ export default function AnimalesPage() {
         setIsOpen={setIsDetailsOpen}
         animal={selectedAnimal}
       />
+
+      <Dialog open={adopcionModalOpen} onOpenChange={setAdopcionModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitud de adopción</DialogTitle>
+          </DialogHeader>
+          {animalAdopcion && (
+            <div className="mb-4 flex flex-col sm:flex-row gap-4 items-center">
+              <img
+                src={animalAdopcion.animalImagenes?.[0]?.url || "https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"}
+                alt={animalAdopcion.nombre}
+                className="w-32 h-32 object-cover rounded-lg border"
+              />
+              <div>
+                <div className="font-bold text-lg">{animalAdopcion.nombre}</div>
+                <div className="text-sm text-muted-foreground flex gap-2 flex-wrap">
+                  <Badge variant="outline">{animalAdopcion.especie?.nombre}</Badge>
+                  <Badge variant="outline">{animalAdopcion.sexo?.nombre}</Badge>
+                  <Badge variant="outline">{animalAdopcion.tamano?.nombre}</Badge>
+                </div>
+                <div className="text-sm mt-2 line-clamp-2">{animalAdopcion.descripcion}</div>
+              </div>
+            </div>
+          )}
+          <div className="mb-2">
+            <label htmlFor="descripcionFamilia" className="block text-sm font-medium mb-1">Describe tu familia y por qué quieres adoptar:</label>
+            <Textarea
+              id="descripcionFamilia"
+              value={descripcionFamilia}
+              onChange={e => {
+                if (e.target.value.length <= 500) setDescripcionFamilia(e.target.value);
+              }}
+              maxLength={500}
+              placeholder="Cuéntanos sobre tu familia, tu hogar y por qué quieres adoptar a esta mascota..."
+              rows={4}
+              className="resize-none"
+            />
+            <div className="text-xs text-muted-foreground text-right">{descripcionFamilia.length}/500</div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdopcionModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEnviarSolicitud}
+              disabled={descripcionFamilia.trim().length === 0 || descripcionFamilia.length > 500}
+            >
+              Enviar solicitud
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
