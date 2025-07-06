@@ -3,8 +3,12 @@ import { PawPrint, Home, FileText, User, ClipboardList, Settings, LogOut, Menu, 
 import { useMsal } from "@azure/msal-react";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner"
+import { useAppStore } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
-const navItems = [
+// Menú para colaboradores (SUPER_ADMIN, ADMIN, COLABORADOR)
+const colaboratorNavItems = [
   { label: "Resumen", to: "/dashboard", icon: Home },
   { label: "Animales", to: "/dashboard/animales", icon: PawPrint },
   { label: "Solicitudes", to: "/dashboard/solicitudes", icon: ClipboardList },
@@ -13,11 +17,22 @@ const navItems = [
   { label: "Configuración", to: "/dashboard/configuracion", icon: Settings },
 ];
 
+// Menú para usuarios adoptantes (USER)
+const userNavItems = [
+  { label: "Mi Dashboard", to: "/dashboard", icon: Home },
+  { label: "Mis Solicitudes", to: "/dashboard/solicitudes", icon: ClipboardList },
+  { label: "Mis Seguimientos", to: "/dashboard/seguimiento", icon: FileText },
+  { label: "Mi Perfil", to: "/dashboard/perfil", icon: User },
+  { label: "Configuración", to: "/dashboard/configuracion", icon: Settings },
+];
+
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { instance, accounts } = useMsal();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isColaborator } = useAppStore();
+  const { loading: authLoading } = useAuth();
 
   const handleLogout = () => {
     instance.logoutPopup().then(() => {
@@ -33,6 +48,14 @@ export function DashboardLayout() {
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
+
+  // Mostrar loading mientras se determina el rol
+  if (authLoading) {
+    return <LoadingScreen />;
+  }
+
+  // Determinar qué menú mostrar
+  const navItems = isColaborator ? colaboratorNavItems : userNavItems;
 
   return (
     <>
@@ -84,8 +107,8 @@ export function DashboardLayout() {
                 {label}
               </Link>
             ))}
-            {/* Solo para administradores */}
-            {userRole === 'SUPER_ADMIN' && (
+            {/* Solo para colaboradores */}
+            {isColaborator && (
               <>
                 <Link
                   to="/dashboard/usuarios"
@@ -144,7 +167,7 @@ export function DashboardLayout() {
                 <Menu className="w-5 h-5" />
               </button>
               <h1 className="text-lg sm:text-xl font-bold text-foreground">
-                Panel de administración
+                {isColaborator ? "Panel de administración" : "Mi Panel"}
               </h1>
             </div>
           </header>

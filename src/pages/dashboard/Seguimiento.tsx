@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSeguimientos } from "@/hooks/useSeguimientos"
+import { useAuth } from "@/hooks/useAuth"
+import { useAppStore } from "@/lib/store"
 import type { Seguimiento as SeguimientoBackend } from "@/services/seguimientosService"
 import { toast } from "sonner"
 
@@ -117,6 +119,7 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
     id: "actions",
     cell: ({ row, table }) => {
       const meta = table.options.meta as any
+      const isColaborator = meta.isColaborator
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -130,16 +133,20 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
             <DropdownMenuItem onClick={() => meta.handleViewHistory(row.original)}>
                 <History className="mr-2 h-4 w-4" /> Ver Historial
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => meta.handleRegisterInteraction(row.original)}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Registrar Interacción
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => meta.handleFinishFollowUp(row.original)}
-            >
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar Seguimiento
-            </DropdownMenuItem>
+            {isColaborator && (
+              <>
+                <DropdownMenuItem onClick={() => meta.handleRegisterInteraction(row.original)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Registrar Interacción
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={() => meta.handleFinishFollowUp(row.original)}
+                >
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar Seguimiento
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -160,19 +167,28 @@ export default function SeguimientoPage() {
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
   const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<SeguimientoTable | null>(null)
 
-  // Usar el hook de seguimientos
+  // Usar el hook de seguimientos y el store
   const { 
     seguimientos, 
     loading, 
     error, 
     fetchSeguimientos, 
+    fetchSeguimientosByUsuario,
     updateSeguimiento
   } = useSeguimientos()
+  const { isColaborator } = useAppStore()
+  const { usuario } = useAuth()
 
   // Cargar datos al montar el componente
   React.useEffect(() => {
-    fetchSeguimientos()
-  }, [fetchSeguimientos])
+    if (isColaborator) {
+      // Colaboradores ven todos los seguimientos
+      fetchSeguimientos()
+    } else if (usuario?.usuarioId) {
+      // Usuarios adoptantes ven solo sus seguimientos
+      fetchSeguimientosByUsuario(usuario.usuarioId)
+    }
+  }, [fetchSeguimientos, fetchSeguimientosByUsuario, isColaborator, usuario?.usuarioId])
 
   // Transformar datos del backend para la tabla
   const tableData: SeguimientoTable[] = React.useMemo(() => {
@@ -251,6 +267,7 @@ export default function SeguimientoPage() {
       handleRegisterInteraction,
       handleViewHistory,
       handleFinishFollowUp,
+      isColaborator,
     },
   })
 
@@ -259,7 +276,9 @@ export default function SeguimientoPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Seguimiento</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
+          </h2>
         </div>
         
         <div className="grid gap-4 md:grid-cols-3">
@@ -309,7 +328,9 @@ export default function SeguimientoPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Seguimiento</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
+          </h2>
         </div>
         
         <Card>
@@ -319,7 +340,13 @@ export default function SeguimientoPage() {
           <CardContent>
             <div className="text-center">
               <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={() => fetchSeguimientos()}>
+              <Button onClick={() => {
+                if (isColaborator) {
+                  fetchSeguimientos()
+                } else if (usuario?.usuarioId) {
+                  fetchSeguimientosByUsuario(usuario.usuarioId)
+                }
+              }}>
                 Reintentar
               </Button>
             </div>
@@ -334,10 +361,13 @@ export default function SeguimientoPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Seguimiento de Adopciones
+          {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
         </h1>
         <p className="text-muted-foreground mt-1">
-          Gestiona y registra las interacciones con los adoptantes.
+          {isColaborator 
+            ? "Gestiona y registra las interacciones con los adoptantes."
+            : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
+          }
         </p>
       </div>
 
@@ -375,9 +405,14 @@ export default function SeguimientoPage() {
       {/* Filtros y tabla/tarjetas */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Seguimientos</CardTitle>
+          <CardTitle>
+            {isColaborator ? "Lista de Seguimientos" : "Mis Seguimientos"}
+          </CardTitle>
           <CardDescription>
-            Busca y filtra los seguimientos por adoptante, animal o estado.
+            {isColaborator 
+              ? "Busca y filtra los seguimientos por adoptante, animal o estado."
+              : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -386,7 +421,7 @@ export default function SeguimientoPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Buscar por adoptante o animal..."
+                placeholder={isColaborator ? "Buscar por adoptante o animal..." : "Buscar por animal..."}
                 value={(table.getColumn("adoptanteNombre")?.getFilterValue() as string) ?? ""}
                 onChange={(event) =>
                   table.getColumn("adoptanteNombre")?.setFilterValue(event.target.value)

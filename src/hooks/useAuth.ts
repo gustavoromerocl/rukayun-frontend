@@ -3,6 +3,7 @@ import { useMsal } from '@azure/msal-react';
 import { useApi } from './useApi';
 import { UsuariosService } from '@/services/usuariosService';
 import type { Usuario } from '@/services/usuariosService';
+import { useAppStore } from '@/lib/store';
 
 export function useAuth() {
   const { accounts } = useMsal();
@@ -11,6 +12,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const { setIsColaborator, user: storeUser, setUser } = useAppStore();
 
   // Debug: Log cada vez que el componente se renderiza
   console.log('🔄 useAuth render - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasLoaded:', hasLoadedRef.current);
@@ -21,20 +23,34 @@ export function useAuth() {
     return new UsuariosService(apiClient);
   }, [apiClient]);
 
-  // Cargar perfil del usuario desde el backend
-  const cargarPerfil = useCallback(async () => {
-    console.log('🚀 cargarPerfil llamado');
+  // Función para determinar si el usuario es colaborador
+  const determinarRolColaborador = useCallback((userRole: string) => {
+    const rolesColaboradores = ['SUPER_ADMIN', 'ADMIN', 'COLABORADOR'];
+    // Hacer la comparación case-insensitive para mayor flexibilidad
+    const userRoleUpper = userRole.toUpperCase();
+    const esColaborador = rolesColaboradores.some(rol => 
+      userRoleUpper.includes(rol) || rol.includes(userRoleUpper)
+    );
+    setIsColaborator(esColaborador);
+    console.log('👤 Rol del usuario:', userRole, 'Es colaborador:', esColaborador);
+  }, [setIsColaborator]);
+
+  // Verificar perfil del usuario desde el backend (solo primera vez)
+  const verificarPerfil = useCallback(async () => {
+    console.log('🚀 verificarPerfil llamado');
     
     if (!accounts || accounts.length === 0) {
-      console.log('❌ No hay sesión activa para cargar perfil');
+      console.log('❌ No hay sesión activa para verificar perfil');
       setUsuario(null);
+      setUser(null);
       hasLoadedRef.current = false;
+      setIsColaborator(false);
       return null;
     }
 
     // Evitar múltiples intentos simultáneos
     if (loading || hasLoadedRef.current) {
-      console.log('⏳ Ya está cargando o ya cargado, saltando carga');
+      console.log('⏳ Ya está cargando o ya cargado, saltando verificación');
       return usuario;
     }
 
@@ -42,27 +58,34 @@ export function useAuth() {
     setError(null);
 
     try {
-      console.log('🔍 Cargando perfil del usuario desde backend...');
+      console.log('🔍 Verificando perfil del usuario desde backend...');
       
-      const usuarioData = await usuariosService.obtenerPerfil();
+      const usuarioData = await usuariosService.verificarPerfil();
       
-      console.log('✅ Perfil cargado:', usuarioData);
+      console.log('✅ Perfil verificado:', usuarioData);
       setUsuario(usuarioData);
+      setUser(usuarioData); // Guardar en Zustand
       hasLoadedRef.current = true;
+      
+      // Determinar rol del usuario
+      const userRole = usuarioData.rol || 'USER';
+      determinarRolColaborador(userRole);
       
       return usuarioData;
       
     } catch (err) {
-      console.error('❌ Error cargando perfil:', err);
-      setError(err instanceof Error ? err.message : 'Error al cargar perfil');
+      console.error('❌ Error verificando perfil:', err);
+      setError(err instanceof Error ? err.message : 'Error al verificar perfil');
       setUsuario(null);
+      setUser(null);
       hasLoadedRef.current = false;
+      setIsColaborator(false);
       return null;
     } finally {
       setLoading(false);
-      console.log('🏁 cargarPerfil completado');
+      console.log('🏁 verificarPerfil completado');
     }
-  }, [accounts, usuariosService, loading, usuario]);
+  }, [accounts, usuariosService, loading, usuario, determinarRolColaborador, setIsColaborator, setUser]);
 
   // Cargar perfil cuando hay una sesión activa
   useEffect(() => {
@@ -70,24 +93,40 @@ export function useAuth() {
     
     const hasActiveAccount = accounts && accounts.length > 0;
     
-    if (hasActiveAccount && !usuario && !loading && !hasLoadedRef.current) {
-      console.log('🔄 Sesión detectada, cargando perfil...');
-      cargarPerfil();
-    } else if (!hasActiveAccount) {
+    if (hasActiveAccount) {
+      // Si ya tenemos datos en Zustand, usarlos
+      if (storeUser && !usuario && !loading && !hasLoadedRef.current) {
+        console.log('📦 Usando datos del store de Zustand');
+        setUsuario(storeUser);
+        hasLoadedRef.current = true;
+        
+        // Determinar rol del usuario desde el store
+        const userRole = storeUser.rol || 'USER';
+        determinarRolColaborador(userRole);
+      }
+      // Si no hay datos en Zustand, verificar perfil
+      else if (!storeUser && !usuario && !loading && !hasLoadedRef.current) {
+        console.log('🔄 Sesión detectada, verificando perfil...');
+        verificarPerfil();
+      }
+    } else {
       console.log('❌ No hay sesión activa, limpiando usuario');
       setUsuario(null);
+      setUser(null);
       hasLoadedRef.current = false;
+      setIsColaborator(false);
     }
-  }, [accounts, usuario, loading, cargarPerfil]);
+  }, [accounts, usuario, loading, storeUser, verificarPerfil, setIsColaborator, setUser, determinarRolColaborador]);
 
-  // Recargar perfil
+  // Recargar perfil (forzar nueva verificación)
   const recargarPerfil = useCallback(() => {
     hasLoadedRef.current = false;
     setUsuario(null);
+    setUser(null);
     if (accounts && accounts.length > 0) {
-      cargarPerfil();
+      verificarPerfil();
     }
-  }, [accounts, cargarPerfil]);
+  }, [accounts, verificarPerfil, setUser]);
 
   // Limpiar error
   const clearError = useCallback(() => {
@@ -98,7 +137,7 @@ export function useAuth() {
     usuario,
     loading,
     error,
-    cargarPerfil,
+    cargarPerfil: verificarPerfil, // Mantener compatibilidad
     recargarPerfil,
     clearError,
     isAuthenticated: !!usuario,

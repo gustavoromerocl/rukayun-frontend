@@ -1,26 +1,18 @@
 import { create } from "zustand";
-import type { Comuna } from "@/services/usuariosService";
+import type { Comuna, Usuario } from "@/services/usuariosService";
 import { UsuariosService } from "@/services/usuariosService";
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role?: string; // Puede venir del backend o de claims
-  phone?: string;
-  address?: string;
-  bio?: string;
-  birthDate?: string;
-}
-
 interface AppState {
-  user: User | null;
-  setUser: (user: User | null) => void;
+  user: Usuario | null;
+  setUser: (user: Usuario | null) => void;
   // Comunas
   comunas: Comuna[];
   loadingComunas: boolean;
   errorComunas: string | null;
   fetchComunas: (apiClient: any) => Promise<void>;
+  // Roles
+  isColaborator: boolean;
+  setIsColaborator: (isColaborator: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -41,4 +33,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ errorComunas: err.message || 'Error al cargar comunas', loadingComunas: false });
     }
   },
+  // Roles
+  isColaborator: false,
+  setIsColaborator: (isColaborator) => set({ isColaborator }),
 })); 
