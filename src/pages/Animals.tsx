@@ -3,73 +3,72 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, Heart } from "lucide-react";
-import { useState } from "react";
-
-// Sample data for animals with more details
-const animals = [
-  { 
-    name: "Fido", 
-    description: "Juguetón y amigable", 
-    image: "https://images.pexels.com/photos/825949/pexels-photo-825949.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Perro",
-    age: "2 años",
-    size: "Mediano"
-  },
-  { 
-    name: "Milo", 
-    description: "Leal y cariñoso", 
-    image: "https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Perro",
-    age: "1 año",
-    size: "Grande"
-  },
-  { 
-    name: "Luna", 
-    description: "Independiente y curiosa", 
-    image: "https://images.pexels.com/photos/1056251/pexels-photo-1056251.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Gato",
-    age: "3 años",
-    size: "Pequeño"
-  },
-  { 
-    name: "Rocky", 
-    description: "Energético y protector", 
-    image: "https://images.pexels.com/photos/2253275/pexels-photo-2253275.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Perro",
-    age: "4 años",
-    size: "Grande"
-  },
-  { 
-    name: "Bella", 
-    description: "Tranquila y dulce", 
-    image: "https://images.pexels.com/photos/4587971/pexels-photo-4587971.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Gato",
-    age: "2 años",
-    size: "Mediano"
-  },
-  { 
-    name: "Max", 
-    description: "Inteligente y obediente", 
-    image: "https://images.pexels.com/photos/3361739/pexels-photo-3361739.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-    type: "Perro",
-    age: "3 años",
-    size: "Mediano"
-  },
-];
+import { useState, useEffect } from "react";
+import { useAnimales } from "@/hooks/useAnimales";
+import { useMsal } from "@azure/msal-react";
+import type { Animal } from "@/services/animalesService";
+import { toast } from "sonner";
+import { useAppStore } from "@/lib/store";
+import { useApi } from "@/hooks/useApi";
+import { AdopcionesService } from "@/services/adopcionesService";
 
 export default function Animals() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedSize, setSelectedSize] = useState("all");
+  const { animales, loading, error, fetchAnimalesPublicados } = useAnimales();
+  const { instance, accounts } = useMsal();
+  const { user } = useAppStore();
+  const apiClient = useApi();
+  const adopcionesService = new AdopcionesService(apiClient);
 
-  const filteredAnimals = animals.filter(animal => {
-    const matchesSearch = animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         animal.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === "all" || animal.type === selectedType;
-    const matchesSize = selectedSize === "all" || animal.size === selectedSize;
-    
+  // Cargar animales publicados al montar y al cambiar filtros
+  useEffect(() => {
+    fetchAnimalesPublicados();
+  }, [fetchAnimalesPublicados]);
+
+  // Filtros locales sobre los animales publicados
+  const filteredAnimals = animales.filter((animal: Animal) => {
+    const matchesSearch = animal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         animal.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = selectedType === "all" || animal.especie?.nombre === selectedType;
+    const matchesSize = selectedSize === "all" || animal.tamano?.nombre === selectedSize;
     return matchesSearch && matchesType && matchesSize;
   });
+
+  // Handler para solicitar adopción
+  const handleAdopt = async (animal: Animal) => {
+    if (!accounts || accounts.length === 0) {
+      await instance.loginPopup();
+      window.location.href = "/dashboard/animales";
+      return;
+    }
+    try {
+      const tokenResponse = await instance.acquireTokenSilent({
+        account: accounts[0],
+        scopes: ["openid", "profile", "email"]
+      });
+      const accessToken = tokenResponse.accessToken;
+      const usuarioId = user?.usuarioId;
+      if (!usuarioId) {
+        toast.error("No se pudo obtener el usuarioId. Intenta recargar la página.");
+        return;
+      }
+      await adopcionesService.solicitarAdopcion({
+        usuarioId,
+        animalId: animal.animalId,
+        descripcionFamilia: "La mejor familia"
+      }, accessToken);
+      toast.success("¡Solicitud de adopción enviada exitosamente!");
+    } catch (err: any) {
+      toast.error(err?.message || "Error al enviar la solicitud de adopción.");
+    }
+  };
+
+  // Handler para conocer más (puedes implementar modal o navegación)
+  const handleDetails = (animal: Animal) => {
+    alert(`Detalles de ${animal.nombre}`);
+  };
 
   return (
     <div className="w-full min-h-screen">
@@ -88,7 +87,7 @@ export default function Animals() {
             </p>
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Heart className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium">{animals.length} animales esperando adopción</span>
+              <span className="text-sm font-medium">{animales.length} animales esperando adopción</span>
             </div>
           </div>
         </div>
@@ -156,7 +155,7 @@ export default function Animals() {
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6 lg:mb-8">
             <p className="text-muted-foreground">
-              Mostrando {filteredAnimals.length} de {animals.length} animales
+              Mostrando {filteredAnimals.length} de {animales.length} animales
             </p>
             {filteredAnimals.length === 0 && (
               <Button 
@@ -173,14 +172,18 @@ export default function Animals() {
           </div>
 
           {/* Animals Grid */}
-          {filteredAnimals.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12 lg:py-16 text-muted-foreground">Cargando animales...</div>
+          ) : error ? (
+            <div className="text-center py-12 lg:py-16 text-red-500">{error}</div>
+          ) : filteredAnimals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               {filteredAnimals.map((animal) => (
                 <AnimalCard 
-                  key={animal.name} 
-                  name={animal.name} 
-                  description={`${animal.description} • ${animal.age} • ${animal.size}`} 
-                  image={animal.image} 
+                  key={animal.animalId} 
+                  animal={animal}
+                  onAdopt={handleAdopt}
+                  onDetails={handleDetails}
                 />
               ))}
             </div>
@@ -206,15 +209,6 @@ export default function Animals() {
                   Ver todos los animales
                 </Button>
               </div>
-            </div>
-          )}
-
-          {/* Load More Button */}
-          {filteredAnimals.length > 0 && (
-            <div className="text-center mt-12">
-              <Button variant="outline" size="lg" className="px-8 py-3">
-                Cargar más animales
-              </Button>
             </div>
           )}
         </div>

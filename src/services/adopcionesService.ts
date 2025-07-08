@@ -58,6 +58,12 @@ export interface UpdateAdopcionRequest {
   descripcionFamilia?: string;
 }
 
+export interface SolicitarAdopcionRequest {
+  animalId: number;
+  usuarioId: number;
+  descripcionFamilia?: string;
+}
+
 // Servicio de adopciones
 export class AdopcionesService {
   private apiClient: ApiClient;
@@ -104,5 +110,27 @@ export class AdopcionesService {
   // Obtener adopciones por animal
   async getAdopcionesByAnimal(animalId: number): Promise<Adopcion[]> {
     return this.apiClient.get<Adopcion[]>(`/adopciones?animalId=${animalId}`);
+  }
+
+  // Solicitar adopción (endpoint público)
+  async solicitarAdopcion(data: SolicitarAdopcionRequest, token?: string): Promise<any> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const url = `${baseUrl}/adopciones/solicitar`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData?.message || 'Error al solicitar adopción');
+    }
+    return response.json();
   }
 } 

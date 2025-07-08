@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, User } from "lucide-react"
+import { MoreHorizontal, Search, Check, X, Eye, ThumbsUp, ThumbsDown, Mail, User, Heart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -57,6 +57,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useAdopciones } from "@/hooks/useAdopciones"
+import { useAuth } from "@/hooks/useAuth"
+import { useAppStore } from "@/lib/store"
 import type { Adopcion } from "@/services/adopcionesService"
 
 // Tipos actualizados para coincidir con la API real
@@ -124,6 +126,7 @@ export const columns: ColumnDef<Solicitud>[] = [
     cell: ({ row, table }) => {
       const solicitud = row.original
       const meta = table.options.meta as any
+      const isColaborator = meta.isColaborator
 
       return (
         <DropdownMenu>
@@ -138,16 +141,20 @@ export const columns: ColumnDef<Solicitud>[] = [
             <DropdownMenuItem onClick={() => meta.handleViewDetails(solicitud)}>
               <Eye className="mr-2 h-4 w-4" /> Ver Detalles
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => meta.handleApprove(solicitud)}>
-              <ThumbsUp className="mr-2 h-4 w-4" /> Aprobar
-            </DropdownMenuItem>
-            <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => meta.handleReject(solicitud)}
-            >
-              <ThumbsDown className="mr-2 h-4 w-4" /> Rechazar
-            </DropdownMenuItem>
+            {isColaborator && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => meta.handleApprove(solicitud)}>
+                  <ThumbsUp className="mr-2 h-4 w-4" /> Aprobar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={() => meta.handleReject(solicitud)}
+                >
+                  <ThumbsDown className="mr-2 h-4 w-4" /> Rechazar
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -166,13 +173,21 @@ export default function SolicitudesPage() {
   const [confirmationAction, setConfirmationAction] = React.useState<"Aprobar" | "Rechazar" | null>(null)
   const [solicitudToAction, setSolicitudToAction] = React.useState<Solicitud | null>(null)
 
-  // Usar el hook de adopciones
-  const { adopciones, loading, error, fetchAdopciones } = useAdopciones()
+  // Hooks para obtener datos y rol del usuario
+  const { adopciones, loading, error, fetchAdopciones, fetchAdopcionesByUsuario } = useAdopciones()
+  const { usuario } = useAuth()
+  const { isColaborator } = useAppStore()
 
   // Cargar datos al montar el componente
   React.useEffect(() => {
-    fetchAdopciones()
-  }, [fetchAdopciones])
+    if (isColaborator) {
+      // Colaboradores ven todas las solicitudes
+      fetchAdopciones()
+    } else if (usuario?.usuarioId) {
+      // Usuarios adoptantes ven solo sus solicitudes
+      fetchAdopcionesByUsuario(usuario.usuarioId)
+    }
+  }, [fetchAdopciones, fetchAdopcionesByUsuario, isColaborator, usuario?.usuarioId])
 
   const handleViewDetails = (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud)
@@ -212,6 +227,7 @@ export default function SolicitudesPage() {
       handleViewDetails,
       handleApprove,
       handleReject,
+      isColaborator,
     }
   })
 
@@ -225,7 +241,9 @@ export default function SolicitudesPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Solicitudes de Adopción</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Solicitudes de Adopción" : "Mis Solicitudes"}
+          </h2>
         </div>
         
         <div className="grid gap-4 md:grid-cols-3">
@@ -275,14 +293,22 @@ export default function SolicitudesPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Solicitudes de Adopción</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isColaborator ? "Solicitudes de Adopción" : "Mis Solicitudes"}
+          </h2>
         </div>
         
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
               <p>Error al cargar las solicitudes: {error}</p>
-              <Button onClick={fetchAdopciones} className="mt-4">
+              <Button onClick={() => {
+                if (isColaborator) {
+                  fetchAdopciones()
+                } else if (usuario?.usuarioId) {
+                  fetchAdopcionesByUsuario(usuario.usuarioId)
+                }
+              }} className="mt-4">
                 Reintentar
               </Button>
             </div>
@@ -297,10 +323,13 @@ export default function SolicitudesPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Solicitudes de Adopción
+          {isColaborator ? "Solicitudes de Adopción" : "Mis Solicitudes"}
         </h1>
         <p className="text-muted-foreground mt-1">
-          Revisa y gestiona las solicitudes de los futuros adoptantes.
+          {isColaborator 
+            ? "Revisa y gestiona las solicitudes de los futuros adoptantes."
+            : "Revisa el estado de tus solicitudes de adopción."
+          }
         </p>
       </div>
 
@@ -338,14 +367,16 @@ export default function SolicitudesPage() {
       {/* Filtros y tabla */}
       <Card>
         <CardHeader>
-          <CardTitle>Todas las Solicitudes</CardTitle>
+          <CardTitle>
+            {isColaborator ? "Todas las Solicitudes" : "Mis Solicitudes"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Buscar por solicitante o animal..."
+                placeholder={isColaborator ? "Buscar por solicitante o animal..." : "Buscar por animal..."}
                 onChange={(event) => {
                   const value = event.target.value
                   table.setGlobalFilter(value)
@@ -362,16 +393,18 @@ export default function SolicitudesPage() {
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        )
+                      })}
                     </TableRow>
                   ))}
                 </TableHeader>
@@ -384,20 +417,14 @@ export default function SolicitudesPage() {
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
+                      <TableCell colSpan={columns.length} className="h-24 text-center">
                         No se encontraron solicitudes.
                       </TableCell>
                     </TableRow>
@@ -406,8 +433,8 @@ export default function SolicitudesPage() {
               </Table>
             </div>
           </div>
-          
-          {/* Vista de Tarjetas para Móvil */}
+
+          {/* Vista móvil */}
           <div className="md:hidden space-y-3">
             {table.getRowModel().rows.map((row) => {
               const { usuarioId, animal, fechaCreacion, adopcionEstado } = row.original
@@ -446,32 +473,42 @@ export default function SolicitudesPage() {
             )}
           </div>
 
+          {/* Paginación */}
           <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Siguiente
-            </Button>
+            <div className="flex-1 text-sm text-muted-foreground">
+              {table.getFilteredSelectedRowModel().rows.length} de{" "}
+              {table.getFilteredRowModel().rows.length} fila(s) seleccionada(s).
+            </div>
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                Siguiente
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Diálogos */}
       <SolicitudDetailsDialog
         isOpen={isDetailsOpen}
         setIsOpen={setIsDetailsOpen}
         solicitud={selectedSolicitud}
+        isColaborator={isColaborator}
       />
+
       <ConfirmationDialog
         isOpen={isConfirmationOpen}
         setIsOpen={setIsConfirmationOpen}
@@ -479,17 +516,19 @@ export default function SolicitudesPage() {
         solicitud={solicitudToAction}
       />
     </div>
-  )
+  );
 }
 
 function SolicitudDetailsDialog({
   isOpen,
   setIsOpen,
   solicitud,
+  isColaborator,
 }: {
   isOpen: boolean
   setIsOpen: (isOpen: boolean) => void
   solicitud: Solicitud | null
+  isColaborator: boolean
 }) {
   if (!solicitud) return null
 
@@ -525,13 +564,15 @@ function SolicitudDetailsDialog({
               </div>
             </div>
 
-            <div>
-              <h4 className="font-semibold text-lg mb-2">Información del Solicitante</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> Usuario ID: {usuarioId}</div>
-                <div className="text-muted-foreground">Información de contacto no disponible</div>
+            {isColaborator && (
+              <div>
+                <h4 className="font-semibold text-lg mb-2">Información del Solicitante</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> Usuario ID: {usuarioId}</div>
+                  <div className="text-muted-foreground">Información de contacto no disponible</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -554,13 +595,6 @@ function SolicitudDetailsDialog({
             </div>
           </div>
         </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <div className="flex-1 text-xs text-muted-foreground">
-            Solicitud recibida el {new Date(fechaCreacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-          </div>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
