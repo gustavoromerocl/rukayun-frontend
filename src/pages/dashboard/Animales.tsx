@@ -76,6 +76,7 @@ import { AnimalCard } from "@/components/AnimalCard"
 import { useApi } from "@/hooks/useApi"
 import { AdopcionesService } from "@/services/adopcionesService"
 import { Textarea } from "@/components/ui/textarea"
+import { AnimalesService } from "@/services/animalesService"
 
 // Tipos actualizados para coincidir con la API real
 export type AnimalTable = Animal
@@ -261,6 +262,12 @@ export default function AnimalesPage() {
   const [animalAdopcion, setAnimalAdopcion] = React.useState<AnimalTable | null>(null);
   const [descripcionFamilia, setDescripcionFamilia] = React.useState("");
 
+  // Estado para modal de detalle
+  const [detalleModalOpen, setDetalleModalOpen] = React.useState(false);
+  const [detalleAnimal, setDetalleAnimal] = React.useState<AnimalTable | null>(null);
+  const [detalleLoading, setDetalleLoading] = React.useState(false);
+  const [detalleError, setDetalleError] = React.useState<string | null>(null);
+
   // Hooks para roles y datos
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
@@ -279,6 +286,7 @@ export default function AnimalesPage() {
   const { accounts, instance } = useMsal()
   const { user } = useAppStore()
   const apiClient = useApi()
+  const animalesService = new AnimalesService(apiClient)
   const adopcionesService = new AdopcionesService(apiClient)
 
   // Cargar datos al montar el componente
@@ -382,6 +390,22 @@ export default function AnimalesPage() {
       setDescripcionFamilia("");
     } catch (err: any) {
       toast.error(err?.message || "Error al enviar la solicitud de adopción.");
+    }
+  };
+
+  // Handler para abrir modal de detalle
+  const handleOpenDetalleModal = async (animal: AnimalTable) => {
+    setDetalleModalOpen(true);
+    setDetalleAnimal(null);
+    setDetalleLoading(true);
+    setDetalleError(null);
+    try {
+      const data = await animalesService.getAnimal(animal.animalId);
+      setDetalleAnimal(data);
+    } catch (err: any) {
+      setDetalleError(err?.message || "Error al cargar el detalle");
+    } finally {
+      setDetalleLoading(false);
     }
   };
 
@@ -850,7 +874,7 @@ export default function AnimalesPage() {
                       key={animal.animalId}
                       animal={animal}
                       onAdopt={handleOpenAdopcionModal}
-                      onDetails={handleViewDetails}
+                      onDetails={handleOpenDetalleModal}
                     />
                   );
                 })}
@@ -931,6 +955,50 @@ export default function AnimalesPage() {
               disabled={descripcionFamilia.trim().length === 0 || descripcionFamilia.length > 500}
             >
               Enviar solicitud
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detalleModalOpen} onOpenChange={setDetalleModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Detalle de la mascota</DialogTitle>
+          </DialogHeader>
+          {detalleLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Cargando detalles...</div>
+          ) : detalleError ? (
+            <div className="py-8 text-center text-red-500">{detalleError}</div>
+          ) : detalleAnimal ? (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <img
+                  src={detalleAnimal.animalImagenes?.[0]?.url || "https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"}
+                  alt={detalleAnimal.nombre}
+                  className="w-32 h-32 object-cover rounded-lg border"
+                />
+                <div>
+                  <div className="font-bold text-lg">{detalleAnimal.nombre}</div>
+                  <div className="text-sm text-muted-foreground flex gap-2 flex-wrap">
+                    <Badge variant="outline">{detalleAnimal.especie?.nombre}</Badge>
+                    <Badge variant="outline">{detalleAnimal.sexo?.nombre}</Badge>
+                    <Badge variant="outline">{detalleAnimal.tamano?.nombre}</Badge>
+                    <Badge variant="outline">{detalleAnimal.nivelActividad?.nombre}</Badge>
+                  </div>
+                  <div className="text-sm mt-2 line-clamp-2">{detalleAnimal.descripcion}</div>
+                </div>
+              </div>
+              <div className="text-sm">
+                <div className="font-semibold mt-2 mb-1">Organización:</div>
+                <div>{detalleAnimal.organizacion?.nombre}</div>
+                <div className="text-xs text-muted-foreground">Contacto: {detalleAnimal.organizacion?.nombreContacto} | {detalleAnimal.organizacion?.telefonoContacto} | {detalleAnimal.organizacion?.emailContacto}</div>
+                <div className="text-xs text-muted-foreground">Dirección: {detalleAnimal.organizacion?.direccion}, {detalleAnimal.organizacion?.comuna?.nombre}</div>
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetalleModalOpen(false)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
