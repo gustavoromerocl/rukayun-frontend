@@ -1,15 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { AnimalCard } from "@/components/AnimalCard";
 import { Heart, BookOpen, Users } from "lucide-react";
-
-// Sample data for featured animals
-const featuredAnimals = [
-  { name: "Fido", description: "Juguetón y amigable", image: "https://images.pexels.com/photos/825949/pexels-photo-825949.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" },
-  { name: "Luna", description: "Independiente y curiosa", image: "https://images.pexels.com/photos/1056251/pexels-photo-1056251.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" },
-  { name: "Rocky", description: "Energético y protector", image: "https://images.pexels.com/photos/2253275/pexels-photo-2253275.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" },
-];
+import { useNavigate } from "react-router-dom";
+import { useAnimales } from "@/hooks/useAnimales";
+import { useEffect } from "react";
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { animales, fetchAnimalesPublicados, loading } = useAnimales();
+
+  useEffect(() => {
+    fetchAnimalesPublicados();
+  }, [fetchAnimalesPublicados]);
+
+  const destacados = animales.slice(0, 3);
+
   return (
     <div className="w-full">
       {/* 1. Hero Section */}
@@ -25,10 +30,10 @@ export default function Home() {
                 Abrimos las puertas de nuestro refugio para que descubras la alegría de adoptar. Cada mascota tiene una historia y está esperando un hogar lleno de amor.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto text-base px-8 py-3">
+                <Button size="lg" className="w-full sm:w-auto text-base px-8 py-3" onClick={() => navigate("/animales")}> 
                   Ver animales en adopción
                 </Button>
-                <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8 py-3">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8 py-3" onClick={() => navigate("/contacto")}> 
                   Conoce nuestro refugio
                 </Button>
               </div>
@@ -102,15 +107,17 @@ export default function Home() {
               Cada uno de estos hermosos animales está listo para llenar tu vida de amor y alegría.
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-            {featuredAnimals.map((animal) => (
-              <AnimalCard key={animal.name} name={animal.name} description={animal.description} image={animal.image} />
-            ))}
-          </div>
-          
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Cargando animales...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
+              {destacados.map((animal) => (
+                <AnimalCard key={animal.animalId} animal={animal} />
+              ))}
+            </div>
+          )}
           <div className="text-center mt-12">
-            <Button size="lg" variant="outline" className="text-base px-8 py-3">
+            <Button size="lg" variant="outline" className="text-base px-8 py-3" onClick={() => navigate("/animales")}> 
               Ver todos los animales
             </Button>
           </div>
