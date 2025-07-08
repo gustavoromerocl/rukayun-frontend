@@ -69,7 +69,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAnimales } from "@/hooks/useAnimales"
 import { useAppStore } from "@/lib/store"
-import { useAuth } from "@/hooks/useAuth"
 import type { Animal } from "@/services/animalesService"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { AnimalCard } from "@/components/AnimalCard"
@@ -270,7 +269,6 @@ export default function AnimalesPage() {
 
   // Hooks para roles y datos
   const { isColaborator } = useAppStore()
-  const { usuario } = useAuth()
 
   // Usar el hook de animales
   const { 
@@ -279,8 +277,6 @@ export default function AnimalesPage() {
     error, 
     fetchAnimales, 
     deleteAnimal,
-    createAnimal,
-    updateAnimal
   } = useAnimales()
 
   const { accounts, instance } = useMsal()
@@ -840,9 +836,6 @@ export default function AnimalesPage() {
               </div>
               <Select
                 value="all"
-                onValueChange={(value) => {
-                  // Aquí podrías implementar filtros adicionales
-                }}
               >
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Todas las especies" />
@@ -864,11 +857,7 @@ export default function AnimalesPage() {
                   animal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   animal.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
                 )
-                .map((animal) => {
-                  const imagenUrl = animal.animalImagenes.length > 0 
-                    ? animal.animalImagenes[0].url 
-                    : undefined;
-                  
+                .map((animal) => {                  
                   return (
                     <AnimalCard
                       key={animal.animalId}

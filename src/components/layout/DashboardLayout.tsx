@@ -30,7 +30,7 @@ const userNavItems = [
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { instance, accounts } = useMsal();
+  const { instance } = useMsal();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isColaborator, setUser, setIsColaborator } = useAppStore();
   const { loading: authLoading } = useAuth();
@@ -42,11 +42,6 @@ export function DashboardLayout() {
       navigate("/");
     });
   };
-
-  // Obtener información del usuario desde MSAL
-  const user = accounts[0];
-  // Obtener el rol desde los claims de MSAL (si está disponible)
-  const userRole = user?.idTokenClaims?.extension_Roles || user?.idTokenClaims?.extension_Role || user?.idTokenClaims?.role || 'user';
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);

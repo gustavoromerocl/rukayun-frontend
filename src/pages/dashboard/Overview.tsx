@@ -2,7 +2,6 @@ import { Heart, Users, PawPrint, TrendingUp, Calendar, AlertCircle, CheckCircle,
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar"
 import {
   Card,
