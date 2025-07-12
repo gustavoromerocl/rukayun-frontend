@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from './useApi';
 import { OrganizacionesService } from '@/services/organizacionesService';
 import type { Organizacion, Usuario } from '@/services/usuariosService';
@@ -8,17 +8,20 @@ export function useOrganizaciones() {
   const [organizaciones, setOrganizaciones] = useState<Organizacion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasInitialized = useRef(false);
 
   const fetchOrganizaciones = useCallback(async () => {
+    console.log('📡 fetchOrganizaciones llamada');
     setLoading(true);
     setError(null);
     
     try {
       const organizacionesService = new OrganizacionesService(apiClient);
       const organizacionesData = await organizacionesService.obtenerOrganizaciones();
+      console.log('✅ fetchOrganizaciones completada, datos obtenidos:', organizacionesData.length);
       setOrganizaciones(organizacionesData);
     } catch (err) {
-      console.error('Error cargando organizaciones:', err);
+      console.error('❌ Error cargando organizaciones:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar las organizaciones');
     } finally {
       setLoading(false);
@@ -124,7 +127,14 @@ export function useOrganizaciones() {
   }, [apiClient]);
 
   useEffect(() => {
-    fetchOrganizaciones();
+    console.log('🔄 useOrganizaciones useEffect ejecutándose - hasInitialized:', hasInitialized.current);
+    if (!hasInitialized.current) {
+      console.log('✅ useOrganizaciones: Inicializando carga de organizaciones');
+      hasInitialized.current = true;
+      fetchOrganizaciones();
+    } else {
+      console.log('⏭️ useOrganizaciones: Ya inicializado, saltando llamada');
+    }
   }, [fetchOrganizaciones]);
 
   return {
