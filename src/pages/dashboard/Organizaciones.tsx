@@ -96,10 +96,21 @@ export default function OrganizacionesPage() {
   // Usar el hook de comunas
   const { comunas } = useComunas()
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  
   React.useEffect(() => {
+    // Evitar múltiples llamadas
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      return;
+    }
+    
+    console.log('🔄 useEffect ejecutándose por primera vez');
     fetchOrganizaciones()
-  }, [fetchOrganizaciones])
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, []) // Sin dependencias para evitar recreaciones
 
   // Efecto para refrescar la tabla cuando cambie el refreshTrigger
   React.useEffect(() => {

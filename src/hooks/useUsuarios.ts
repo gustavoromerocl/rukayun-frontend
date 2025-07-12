@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from './useApi';
 import { UsuariosService } from '@/services/usuariosService';
 import type { Usuario } from '@/services/usuariosService';
@@ -8,6 +8,7 @@ export function useUsuarios(organizacionId?: number) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasInitialized = useRef(false);
 
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
@@ -24,7 +25,11 @@ export function useUsuarios(organizacionId?: number) {
   }, [apiClient, organizacionId]);
 
   useEffect(() => {
-    fetchUsuarios();
+    if (!hasInitialized.current) {
+      console.log('useUsuarios: Inicializando carga de usuarios');
+      hasInitialized.current = true;
+      fetchUsuarios();
+    }
   }, [fetchUsuarios]);
 
   return {

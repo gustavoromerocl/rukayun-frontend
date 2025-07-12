@@ -179,16 +179,35 @@ export default function SeguimientoPage() {
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  
   React.useEffect(() => {
-    if (isColaborator) {
-      // Colaboradores ven todos los seguimientos
-      fetchSeguimientos()
-    } else if (usuario?.usuarioId) {
-      // Usuarios adoptantes ven solo sus seguimientos
-      fetchSeguimientosByUsuario(usuario.usuarioId)
+    // Evitar múltiples llamadas
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      return;
     }
-  }, [fetchSeguimientos, fetchSeguimientosByUsuario, isColaborator, usuario?.usuarioId])
+    
+    console.log('🔄 useEffect ejecutándose por primera vez');
+    
+    // Usar una función interna para evitar dependencias problemáticas
+    const loadData = () => {
+      if (isColaborator) {
+        console.log('📡 Cargando todos los seguimientos (colaborador)');
+        // Colaboradores ven todos los seguimientos
+        fetchSeguimientos()
+      } else if (usuario?.usuarioId) {
+        console.log('📡 Cargando seguimientos del usuario:', usuario.usuarioId);
+        // Usuarios adoptantes ven solo sus seguimientos
+        fetchSeguimientosByUsuario(usuario.usuarioId)
+      }
+    }
+
+    loadData()
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, [isColaborator, usuario?.usuarioId]) // Sin hasLoaded en las dependencias
 
   // Transformar datos del backend para la tabla
   const tableData: SeguimientoTable[] = React.useMemo(() => {
@@ -236,8 +255,12 @@ export default function SeguimientoPage() {
         
         toast.success('Seguimiento finalizado exitosamente')
         
-        // Refrescar la lista
-        fetchSeguimientos()
+        // Refrescar la lista - CORREGIR ESTA LÍNEA
+        if (isColaborator) {
+          fetchSeguimientos()
+        } else if (usuario?.usuarioId) {
+          fetchSeguimientosByUsuario(usuario.usuarioId)
+        }
         
       } catch (error) {
         console.error('Error al finalizar seguimiento:', error)

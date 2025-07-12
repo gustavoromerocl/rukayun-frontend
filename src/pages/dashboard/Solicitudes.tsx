@@ -177,16 +177,35 @@ export default function SolicitudesPage() {
   const { usuario } = useAuth()
   const { isColaborator } = useAppStore()
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  
   React.useEffect(() => {
-    if (isColaborator) {
-      // Colaboradores ven todas las solicitudes
-      fetchAdopciones()
-    } else if (usuario?.usuarioId) {
-      // Usuarios adoptantes ven solo sus solicitudes
-      fetchAdopcionesByUsuario(usuario.usuarioId)
+    // Evitar múltiples llamadas
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      return;
     }
-  }, [fetchAdopciones, fetchAdopcionesByUsuario, isColaborator, usuario?.usuarioId])
+    
+    console.log('🔄 useEffect ejecutándose por primera vez');
+    
+    // Usar una función interna para evitar dependencias problemáticas
+    const loadData = () => {
+      if (isColaborator) {
+        console.log('📡 Cargando todas las solicitudes (colaborador)');
+        // Colaboradores ven todas las solicitudes
+        fetchAdopciones()
+      } else if (usuario?.usuarioId) {
+        console.log('📡 Cargando solicitudes del usuario:', usuario.usuarioId);
+        // Usuarios adoptantes ven solo sus solicitudes
+        fetchAdopcionesByUsuario(usuario.usuarioId)
+      }
+    }
+
+    loadData()
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, [isColaborator, usuario?.usuarioId]) // Sin hasLoaded en las dependencias
 
   const handleViewDetails = (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud)
