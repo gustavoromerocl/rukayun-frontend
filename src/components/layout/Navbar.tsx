@@ -4,6 +4,7 @@ import { PawPrint, LogOut, Menu, X, Loader2 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { clearTokenCache } from "@/lib/api";
 
 export function Navbar() {
   const { instance, accounts } = useMsal();
@@ -12,6 +13,7 @@ export function Navbar() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogout = () => {
+    clearTokenCache(); // Limpiar caché de tokens
     instance.logoutPopup().then(() => {
       navigate("/");
       setIsMenuOpen(false);

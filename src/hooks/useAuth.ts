@@ -4,6 +4,7 @@ import { useApi } from './useApi';
 import { UsuariosService } from '@/services/usuariosService';
 import type { Usuario } from '@/services/usuariosService';
 import { useAppStore } from '@/lib/store';
+import { useAuthError } from './useAuthError';
 
 export function useAuth() {
   const { accounts } = useMsal();
@@ -13,6 +14,7 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
   const { setIsColaborator, user: storeUser, setUser } = useAppStore();
+  const { handleAuthError } = useAuthError();
 
   // Debug: Log cada vez que el componente se renderiza
   console.log('🔄 useAuth render - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasLoaded:', hasLoadedRef.current);
@@ -75,6 +77,17 @@ export function useAuth() {
       
     } catch (err) {
       console.error('❌ Error verificando perfil:', err);
+      
+      // Manejar errores de autenticación específicamente
+      if (err instanceof Error) {
+        if (err.message.includes('Sesión expirada') || 
+            err.message.includes('401') || 
+            err.message.includes('403')) {
+          handleAuthError(err);
+          return null;
+        }
+      }
+      
       setError(err instanceof Error ? err.message : 'Error al verificar perfil');
       setUsuario(null);
       setUser(null);

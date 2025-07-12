@@ -9,6 +9,14 @@ const API_CONFIG = {
   },
 };
 
+// Cache para tokens
+interface TokenCache {
+  token: string;
+  expiresAt: number;
+}
+
+const tokenCache = new Map<string, TokenCache>();
+
 // Interceptor para agregar token de Microsoft a las requests
 const createAuthInterceptor = (msalInstance: IPublicClientApplication) => {
   return async (config: RequestInit): Promise<RequestInit> => {
@@ -16,6 +24,25 @@ const createAuthInterceptor = (msalInstance: IPublicClientApplication) => {
       // Obtener la cuenta activa
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length > 0) {
+        const accountId = accounts[0].localAccountId || accounts[0].homeAccountId || 'default';
+        const cacheKey = `${accountId}_id_token`;
+        
+        // Verificar si tenemos un token válido en caché
+        const cachedToken = tokenCache.get(cacheKey);
+        const now = Date.now();
+        
+        if (cachedToken && cachedToken.expiresAt > now) {
+          console.log('🔑 Usando token en caché');
+          return {
+            ...config,
+            headers: {
+              ...config.headers,
+              'Authorization': `Bearer ${cachedToken.token}`,
+            },
+          };
+        }
+        
+        console.log('🔑 Obteniendo nuevo token de Azure AD B2C');
         // Obtener token de acceso para el scope del backend
         const response = await msalInstance.acquireTokenSilent({
           scopes: ["openid", "profile", "email"],
@@ -29,6 +56,15 @@ const createAuthInterceptor = (msalInstance: IPublicClientApplication) => {
           return config;
         }
         
+        // Cachear el token por 50 minutos (los tokens suelen durar 1 hora)
+        const expiresAt = now + (50 * 60 * 1000);
+        tokenCache.set(cacheKey, {
+          token: idToken,
+          expiresAt: expiresAt,
+        });
+        
+        console.log('🔑 Token cacheado hasta:', new Date(expiresAt).toLocaleTimeString());
+        
         // Agregar el token al header Authorization
         return {
           ...config,
@@ -40,6 +76,17 @@ const createAuthInterceptor = (msalInstance: IPublicClientApplication) => {
       }
     } catch (error) {
       console.error('Error obteniendo token:', error);
+      
+      // Limpiar caché si hay error de autenticación
+      if (error instanceof Error) {
+        if (error.message.includes('interaction_required') || 
+            error.message.includes('consent_required') ||
+            error.message.includes('login_required')) {
+          console.log('🔐 Error de autenticación, limpiando caché');
+          tokenCache.clear();
+        }
+      }
+      
       // No intentar login interactivo automáticamente para evitar bucles
       // El usuario deberá hacer login manualmente si es necesario
     }
@@ -90,6 +137,13 @@ class ApiClient {
       console.log(`✅ API Response: ${response.status} ${response.statusText} for ${options.method || 'GET'} ${url}`);
 
       if (!response.ok) {
+        // Manejar errores de autenticación específicamente
+        if (response.status === 401 || response.status === 403) {
+          console.log('🔐 Error de autenticación en respuesta, limpiando caché');
+          tokenCache.clear();
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        
         throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
       }
 
@@ -151,5 +205,23 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 }
+
+// Función para limpiar el caché de tokens
+export const clearTokenCache = () => {
+  console.log('🧹 Limpiando caché de tokens');
+  tokenCache.clear();
+};
+
+// Función para obtener estadísticas del caché (para debugging)
+export const getTokenCacheStats = () => {
+  return {
+    size: tokenCache.size,
+    entries: Array.from(tokenCache.entries()).map(([key, value]) => ({
+      key,
+      expiresAt: new Date(value.expiresAt).toLocaleString(),
+      isValid: value.expiresAt > Date.now()
+    }))
+  };
+};
 
 export { ApiClient, API_CONFIG }; 
