@@ -59,6 +59,8 @@ export default function UsuariosOrgPage() {
   const { comunas } = useComunas();
   const [addLoading, setAddLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [editErrors, setEditErrors] = useState<{[key: string]: string}>({});
+  const [addErrors, setAddErrors] = useState<{[key: string]: string}>({});
 
   // Hook real de usuarios
   const apiClient = useApi();
@@ -81,6 +83,13 @@ export default function UsuariosOrgPage() {
 
   const handleEditSave = async () => {
     if (!editUser) return;
+    
+    // Validar formulario antes de enviar
+    if (!validateEditForm()) {
+      toast.error('Por favor, completa todos los campos obligatorios')
+      return
+    }
+
     setEditLoading(true);
     try {
       const usuariosService = new UsuariosService(apiClient);
@@ -99,9 +108,17 @@ export default function UsuariosOrgPage() {
       toast.success('Usuario actualizado exitosamente');
       setEditUser(null);
       setEditData({});
+      setEditErrors({});
       fetchUsuarios();
-    } catch (error) {
-      toast.error('Error al actualizar usuario');
+    } catch (error: any) {
+      console.error('Error actualizando usuario:', error)
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error('Error al actualizar usuario')
+      }
     } finally {
       setEditLoading(false);
     }
@@ -110,9 +127,49 @@ export default function UsuariosOrgPage() {
   const handleEditCancel = () => {
     setEditUser(null)
     setEditData({})
+    setEditErrors({})
+  }
+
+  const validateEditForm = () => {
+    const errors: {[key: string]: string} = {}
+    
+    if (!editData.nombres?.trim()) {
+      errors.nombres = 'Los nombres son obligatorios'
+    }
+    
+    if (!editData.apellidos?.trim()) {
+      errors.apellidos = 'Los apellidos son obligatorios'
+    }
+    
+    if (!editData.email?.trim()) {
+      errors.email = 'El email es obligatorio'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editData.email)) {
+      errors.email = 'El formato del email no es válido'
+    }
+    
+    if (!editData.telefono?.trim()) {
+      errors.telefono = 'El teléfono es obligatorio'
+    }
+    
+    if (!editData.direccion?.trim()) {
+      errors.direccion = 'La dirección es obligatoria'
+    }
+    
+    if (!editData.comunaId) {
+      errors.comunaId = 'La comuna es obligatoria'
+    }
+    
+    setEditErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleAddSave = async () => {
+    // Validar formulario antes de enviar
+    if (!validateAddForm()) {
+      toast.error('Por favor, completa todos los campos obligatorios')
+      return
+    }
+
     setAddLoading(true);
     try {
       const usuariosService = new UsuariosService(apiClient);
@@ -131,12 +188,58 @@ export default function UsuariosOrgPage() {
       toast.success('Usuario creado exitosamente');
       setAddOpen(false);
       setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true });
+      setAddErrors({});
       fetchUsuarios();
-    } catch (error) {
-      toast.error('Error al crear usuario');
+    } catch (error: any) {
+      console.error('Error creando usuario:', error)
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error('Error al crear usuario')
+      }
     } finally {
       setAddLoading(false);
     }
+  }
+
+  const clearAddForm = () => {
+    setAddData({ nombres: '', apellidos: '', telefono: '', email: '', comunaId: '', direccion: '', activo: true });
+    setAddErrors({});
+  }
+
+  const validateAddForm = () => {
+    const errors: {[key: string]: string} = {}
+    
+    if (!addData.nombres?.trim()) {
+      errors.nombres = 'Los nombres son obligatorios'
+    }
+    
+    if (!addData.apellidos?.trim()) {
+      errors.apellidos = 'Los apellidos son obligatorios'
+    }
+    
+    if (!addData.email?.trim()) {
+      errors.email = 'El email es obligatorio'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addData.email)) {
+      errors.email = 'El formato del email no es válido'
+    }
+    
+    if (!addData.telefono?.trim()) {
+      errors.telefono = 'El teléfono es obligatorio'
+    }
+    
+    if (!addData.direccion?.trim()) {
+      errors.direccion = 'La dirección es obligatoria'
+    }
+    
+    if (!addData.comunaId) {
+      errors.comunaId = 'La comuna es obligatoria'
+    }
+    
+    setAddErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   return (
@@ -146,7 +249,10 @@ export default function UsuariosOrgPage() {
           <h2 className="text-2xl font-bold flex items-center gap-2"><Users className="w-6 h-6" />Usuarios de la organización</h2>
           <p className="text-muted-foreground">Administra los usuarios que pertenecen a tu organización.</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
+        <Button onClick={() => {
+          clearAddForm();
+          setAddOpen(true);
+        }} className="w-full sm:w-auto">
           <Users className="mr-2 h-4 w-4" /> Añadir usuario
         </Button>
       </div>
@@ -257,31 +363,100 @@ export default function UsuariosOrgPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="block text-sm font-medium">Nombres *</label>
-                <Input value={editData.nombres || ''} onChange={e => setEditData((d: any) => ({ ...d, nombres: e.target.value }))} required />
+                <Input 
+                  value={editData.nombres || ''} 
+                  onChange={e => {
+                    setEditData((d: any) => ({ ...d, nombres: e.target.value }))
+                    if (editErrors.nombres) {
+                      setEditErrors(prev => ({ ...prev, nombres: '' }))
+                    }
+                  }} 
+                  className={editErrors.nombres ? 'border-red-500' : ''}
+                />
+                {editErrors.nombres && (
+                  <p className="text-sm text-red-500">{editErrors.nombres}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium">Apellidos *</label>
-                <Input value={editData.apellidos || ''} onChange={e => setEditData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
+                <Input 
+                  value={editData.apellidos || ''} 
+                  onChange={e => {
+                    setEditData((d: any) => ({ ...d, apellidos: e.target.value }))
+                    if (editErrors.apellidos) {
+                      setEditErrors(prev => ({ ...prev, apellidos: '' }))
+                    }
+                  }} 
+                  className={editErrors.apellidos ? 'border-red-500' : ''}
+                />
+                {editErrors.apellidos && (
+                  <p className="text-sm text-red-500">{editErrors.apellidos}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium">Email *</label>
-              <Input type="email" value={editData.email || ''} onChange={e => setEditData((d: any) => ({ ...d, email: e.target.value }))} required />
+              <Input 
+                type="email" 
+                value={editData.email || ''} 
+                onChange={e => {
+                  setEditData((d: any) => ({ ...d, email: e.target.value }))
+                  if (editErrors.email) {
+                    setEditErrors(prev => ({ ...prev, email: '' }))
+                  }
+                }} 
+                className={editErrors.email ? 'border-red-500' : ''}
+              />
+              {editErrors.email && (
+                <p className="text-sm text-red-500">{editErrors.email}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Teléfono</label>
-                <Input value={editData.telefono || ''} onChange={e => setEditData((d: any) => ({ ...d, telefono: e.target.value }))} />
+                <label className="block text-sm font-medium">Teléfono *</label>
+                <Input 
+                  value={editData.telefono || ''} 
+                  onChange={e => {
+                    setEditData((d: any) => ({ ...d, telefono: e.target.value }))
+                    if (editErrors.telefono) {
+                      setEditErrors(prev => ({ ...prev, telefono: '' }))
+                    }
+                  }} 
+                  className={editErrors.telefono ? 'border-red-500' : ''}
+                />
+                {editErrors.telefono && (
+                  <p className="text-sm text-red-500">{editErrors.telefono}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Dirección</label>
-                <Input value={editData.direccion || ''} onChange={e => setEditData((d: any) => ({ ...d, direccion: e.target.value }))} />
+                <label className="block text-sm font-medium">Dirección *</label>
+                <Input 
+                  value={editData.direccion || ''} 
+                  onChange={e => {
+                    setEditData((d: any) => ({ ...d, direccion: e.target.value }))
+                    if (editErrors.direccion) {
+                      setEditErrors(prev => ({ ...prev, direccion: '' }))
+                    }
+                  }} 
+                  className={editErrors.direccion ? 'border-red-500' : ''}
+                />
+                {editErrors.direccion && (
+                  <p className="text-sm text-red-500">{editErrors.direccion}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Comuna</label>
-              <Select value={editData.comunaId ? String(editData.comunaId) : ''} onValueChange={value => setEditData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
-                <SelectTrigger>
+              <label className="block text-sm font-medium">Comuna *</label>
+              <Select 
+                value={editData.comunaId ? String(editData.comunaId) : ''} 
+                onValueChange={value => {
+                  setEditData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))
+                  if (editErrors.comunaId) {
+                    setEditErrors(prev => ({ ...prev, comunaId: '' }))
+                  }
+                }}
+              >
+                <SelectTrigger className={editErrors.comunaId ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Selecciona una comuna" />
                 </SelectTrigger>
                 <SelectContent>
@@ -290,6 +465,9 @@ export default function UsuariosOrgPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {editErrors.comunaId && (
+                <p className="text-sm text-red-500">{editErrors.comunaId}</p>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleEditCancel}>Cancelar</Button>
@@ -318,7 +496,12 @@ export default function UsuariosOrgPage() {
       </AlertDialog>
 
       {/* Modal de agregar usuario */}
-      <Dialog open={addOpen} onOpenChange={open => !open && setAddOpen(false)}>
+      <Dialog open={addOpen} onOpenChange={open => {
+        if (!open) {
+          setAddOpen(false)
+          clearAddForm();
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Añadir usuario</DialogTitle>
@@ -328,31 +511,100 @@ export default function UsuariosOrgPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="block text-sm font-medium">Nombres *</label>
-                <Input value={addData.nombres} onChange={e => setAddData((d: any) => ({ ...d, nombres: e.target.value }))} required />
+                <Input 
+                  value={addData.nombres} 
+                  onChange={e => {
+                    setAddData((d: any) => ({ ...d, nombres: e.target.value }))
+                    if (addErrors.nombres) {
+                      setAddErrors(prev => ({ ...prev, nombres: '' }))
+                    }
+                  }} 
+                  className={addErrors.nombres ? 'border-red-500' : ''}
+                />
+                {addErrors.nombres && (
+                  <p className="text-sm text-red-500">{addErrors.nombres}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium">Apellidos *</label>
-                <Input value={addData.apellidos} onChange={e => setAddData((d: any) => ({ ...d, apellidos: e.target.value }))} required />
+                <Input 
+                  value={addData.apellidos} 
+                  onChange={e => {
+                    setAddData((d: any) => ({ ...d, apellidos: e.target.value }))
+                    if (addErrors.apellidos) {
+                      setAddErrors(prev => ({ ...prev, apellidos: '' }))
+                    }
+                  }} 
+                  className={addErrors.apellidos ? 'border-red-500' : ''}
+                />
+                {addErrors.apellidos && (
+                  <p className="text-sm text-red-500">{addErrors.apellidos}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium">Email *</label>
-              <Input type="email" value={addData.email} onChange={e => setAddData((d: any) => ({ ...d, email: e.target.value }))} required />
+              <Input 
+                type="email" 
+                value={addData.email} 
+                onChange={e => {
+                  setAddData((d: any) => ({ ...d, email: e.target.value }))
+                  if (addErrors.email) {
+                    setAddErrors(prev => ({ ...prev, email: '' }))
+                  }
+                }} 
+                className={addErrors.email ? 'border-red-500' : ''}
+              />
+              {addErrors.email && (
+                <p className="text-sm text-red-500">{addErrors.email}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Teléfono</label>
-                <Input value={addData.telefono} onChange={e => setAddData((d: any) => ({ ...d, telefono: e.target.value }))} />
+                <label className="block text-sm font-medium">Teléfono *</label>
+                <Input 
+                  value={addData.telefono} 
+                  onChange={e => {
+                    setAddData((d: any) => ({ ...d, telefono: e.target.value }))
+                    if (addErrors.telefono) {
+                      setAddErrors(prev => ({ ...prev, telefono: '' }))
+                    }
+                  }} 
+                  className={addErrors.telefono ? 'border-red-500' : ''}
+                />
+                {addErrors.telefono && (
+                  <p className="text-sm text-red-500">{addErrors.telefono}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Dirección</label>
-                <Input value={addData.direccion} onChange={e => setAddData((d: any) => ({ ...d, direccion: e.target.value }))} />
+                <label className="block text-sm font-medium">Dirección *</label>
+                <Input 
+                  value={addData.direccion} 
+                  onChange={e => {
+                    setAddData((d: any) => ({ ...d, direccion: e.target.value }))
+                    if (addErrors.direccion) {
+                      setAddErrors(prev => ({ ...prev, direccion: '' }))
+                    }
+                  }} 
+                  className={addErrors.direccion ? 'border-red-500' : ''}
+                />
+                {addErrors.direccion && (
+                  <p className="text-sm text-red-500">{addErrors.direccion}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Comuna</label>
-              <Select value={addData.comunaId ? String(addData.comunaId) : ''} onValueChange={value => setAddData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))}>
-                <SelectTrigger>
+              <label className="block text-sm font-medium">Comuna *</label>
+              <Select 
+                value={addData.comunaId ? String(addData.comunaId) : ''} 
+                onValueChange={value => {
+                  setAddData((d: any) => ({ ...d, comunaId: value ? Number(value) : undefined }))
+                  if (addErrors.comunaId) {
+                    setAddErrors(prev => ({ ...prev, comunaId: '' }))
+                  }
+                }}
+              >
+                <SelectTrigger className={addErrors.comunaId ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Selecciona una comuna" />
                 </SelectTrigger>
                 <SelectContent>
@@ -361,6 +613,9 @@ export default function UsuariosOrgPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {addErrors.comunaId && (
+                <p className="text-sm text-red-500">{addErrors.comunaId}</p>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
