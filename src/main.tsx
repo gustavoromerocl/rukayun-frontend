@@ -9,12 +9,18 @@ import { msalConfig } from "@/lib/msalConfig"
 
 const msalInstance = new PublicClientApplication(msalConfig)
 
+const isProd = import.meta.env.PROD;
+
+const Root = (
+  <MsalProvider instance={msalInstance}>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <App />
+    </ThemeProvider>
+  </MsalProvider>
+)
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <App />
-      </ThemeProvider>
-    </MsalProvider>
-  </React.StrictMode>,
+  isProd
+    ? Root
+    : <React.StrictMode>{Root}</React.StrictMode>
 )
