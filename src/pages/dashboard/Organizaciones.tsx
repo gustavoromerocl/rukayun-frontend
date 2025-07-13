@@ -511,9 +511,15 @@ function OrganizacionFormDialog({
 
       setIsOpen(false)
       onRefresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar organización:', error)
-      toast.error('Ocurrió un error al guardar la organización')
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error('Ocurrió un error al guardar la organización')
+      }
     } finally {
       setLoading(false)
     }

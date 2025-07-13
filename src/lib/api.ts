@@ -136,6 +136,10 @@ class ApiClient {
       clearTimeout(timeoutId);
       console.log(`✅ API Response: ${response.status} ${response.statusText} for ${options.method || 'GET'} ${url}`);
 
+      // Leer el contenido de la respuesta una sola vez
+      const responseText = await response.text();
+      const hasContent = responseText.trim().length > 0;
+
       if (!response.ok) {
         // Manejar errores de autenticación específicamente
         if (response.status === 401 || response.status === 403) {
@@ -144,7 +148,28 @@ class ApiClient {
           throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
         }
         
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        // Intentar obtener el detalle del error del backend
+        if (hasContent) {
+          let errorData;
+          try {
+            errorData = JSON.parse(responseText);
+          } catch (parseError) {
+            // Si no se puede parsear, lanzar error genérico
+            throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+          }
+          
+          // Crear un error personalizado que preserve la respuesta del backend
+          const customError = new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+          (customError as any).response = {
+            status: response.status,
+            statusText: response.statusText,
+            data: errorData
+          };
+          throw customError;
+        } else {
+          // Si no hay contenido, lanzar error genérico
+          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        }
       }
 
       // Si la respuesta es 204 No Content, no intentar parsear JSON
@@ -154,8 +179,7 @@ class ApiClient {
       }
 
       // Verificar si hay contenido en la respuesta antes de intentar parsear JSON
-      const responseText = await response.text();
-      if (responseText.trim()) {
+      if (hasContent) {
         const parsed = JSON.parse(responseText);
         console.log(`📦 Parsed response for ${options.method || 'GET'} ${url}:`, parsed);
         return parsed;
