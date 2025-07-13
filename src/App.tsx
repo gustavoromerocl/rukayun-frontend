@@ -15,6 +15,7 @@ import Configuracion from "@/pages/dashboard/Configuracion";
 import Usuarios from "@/pages/dashboard/Usuarios";
 import Organizaciones from "@/pages/dashboard/Organizaciones";
 import { RequireAuth, RequireAdmin } from "@/components/RequireAuth";
+import { InitialLoadWrapper } from "@/components/InitialLoadWrapper";
 
 function App() {
   return (
@@ -30,7 +31,9 @@ function App() {
         {/* Dashboard layout protegido */}
         <Route path="/dashboard" element={
           <RequireAuth>
-            <DashboardLayout />
+            <InitialLoadWrapper>
+              <DashboardLayout />
+            </InitialLoadWrapper>
           </RequireAuth>
         }>
           <Route index element={<Overview />} />

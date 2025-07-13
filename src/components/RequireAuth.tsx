@@ -1,15 +1,18 @@
 import { useMsal } from "@azure/msal-react";
 import { Navigate } from "react-router-dom";
 import { LoadingScreen } from "./LoadingScreen";
+import { useAuth } from "@/hooks/useAuth";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { accounts, inProgress } = useMsal();
+  const { loading: authLoading } = useAuth();
 
   // Debug temporal
   console.log('RequireAuth - Accounts:', accounts);
   console.log('RequireAuth - InProgress:', inProgress);
+  console.log('RequireAuth - AuthLoading:', authLoading);
 
-  if (inProgress !== "none") {
+  if (inProgress !== "none" || authLoading) {
     console.log('RequireAuth - Mostrando LoadingScreen');
     return <LoadingScreen />;
   }
@@ -25,12 +28,14 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { accounts, inProgress } = useMsal();
+  const { loading: authLoading } = useAuth();
 
   // Debug temporal
   console.log('RequireAdmin - Accounts:', accounts);
   console.log('RequireAdmin - InProgress:', inProgress);
+  console.log('RequireAdmin - AuthLoading:', authLoading);
 
-  if (inProgress !== "none") {
+  if (inProgress !== "none" || authLoading) {
     console.log('RequireAdmin - Mostrando LoadingScreen');
     return <LoadingScreen />;
   }
