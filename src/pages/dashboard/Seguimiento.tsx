@@ -179,31 +179,94 @@ export default function SeguimientoPage() {
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
 
-  // Cargar datos al montar el componente
+  // LOG: Verificar datos crudos del backend
+  console.log('seguimientos:', seguimientos);
+
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  const lastUserIdRef = React.useRef<number | null>(null);
+  const lastIsColaboratorRef = React.useRef<boolean | null>(null);
+  
   React.useEffect(() => {
-    if (isColaborator) {
-      // Colaboradores ven todos los seguimientos
-      fetchSeguimientos()
-    } else if (usuario?.usuarioId) {
-      // Usuarios adoptantes ven solo sus seguimientos
-      fetchSeguimientosByUsuario(usuario.usuarioId)
+    const currentUserId = usuario?.usuarioId || null;
+    const currentIsColaborator = isColaborator;
+    
+    // Verificar si han cambiado el usuario o el rol
+    const userChanged = lastUserIdRef.current !== currentUserId;
+    const roleChanged = lastIsColaboratorRef.current !== currentIsColaborator;
+    
+    console.log('🔄 useEffect ejecutándose', {
+      currentUserId,
+      currentIsColaborator,
+      lastUserId: lastUserIdRef.current,
+      lastIsColaborator: lastIsColaboratorRef.current,
+      userChanged,
+      roleChanged,
+      hasLoaded: hasLoadedRef.current
+    });
+    
+    // Si cambió el usuario o el rol, resetear el flag
+    if (userChanged || roleChanged) {
+      console.log('🔄 Usuario o rol cambiado, reseteando hasLoadedRef');
+      hasLoadedRef.current = false;
+      lastUserIdRef.current = currentUserId;
+      lastIsColaboratorRef.current = currentIsColaborator;
     }
-  }, [fetchSeguimientos, fetchSeguimientosByUsuario, isColaborator, usuario?.usuarioId])
+    
+    // Evitar múltiples llamadas para el mismo usuario/rol
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado para este usuario/rol, evitando llamada duplicada');
+      return;
+    }
+    
+    console.log('🔄 useEffect ejecutándose por primera vez para este usuario/rol');
+    
+    // Usar una función interna para evitar dependencias problemáticas
+    const loadData = () => {
+      if (isColaborator) {
+        console.log('📡 Cargando todos los seguimientos (colaborador)');
+        // Colaboradores ven todos los seguimientos
+        fetchSeguimientos()
+      } else if (usuario?.usuarioId) {
+        console.log('📡 Cargando seguimientos del usuario:', usuario.usuarioId);
+        // Usuarios adoptantes ven solo sus seguimientos
+        fetchSeguimientosByUsuario(usuario.usuarioId)
+      }
+    }
+
+    loadData()
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, [isColaborator, usuario?.usuarioId, fetchSeguimientos, fetchSeguimientosByUsuario]) // Incluir las funciones en las dependencias
 
   // Transformar datos del backend para la tabla
   const tableData: SeguimientoTable[] = React.useMemo(() => {
     if (!seguimientos || !Array.isArray(seguimientos)) {
+      console.log('tableData: seguimientos vacío o no array');
       return [];
     }
-    
-    return seguimientos.map(seguimiento => ({
-      ...seguimiento,
-      animalNombre: seguimiento.adopcion?.animal?.nombre || 'N/A',
-      adoptanteNombre: seguimiento.adopcion?.adoptante ? 
-        `${seguimiento.adopcion.adoptante.nombres} ${seguimiento.adopcion.adoptante.apellidos}` : 
-        'N/A'
-    }))
-  }, [seguimientos])
+    const data = seguimientos.map(s => {
+      const anyS = s as any;
+      return {
+        ...s,
+        animalNombre: anyS.animalNombre || s.adopcion?.animal?.nombre || 'N/A',
+        adoptanteNombre: anyS.usuarioNombre || (
+          s.adopcion?.adoptante
+            ? `${s.adopcion.adoptante.nombres} ${s.adopcion.adoptante.apellidos}`
+            : 'N/A'
+        ),
+        estado: anyS.seguimientoEstado?.nombre || s.estado || 'N/A',
+        fechaSeguimiento: anyS.fechaInteraccion || s.fechaSeguimiento || 'N/A',
+      };
+    });
+    console.log('tableData: mapeado', data);
+    return data;
+  }, [seguimientos]);
+
+  // LOG: Verificar datos que llegan a la tabla
+  React.useEffect(() => {
+    console.log('tableData (useEffect):', tableData);
+  }, [tableData]);
 
   const handleRegisterInteraction = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
@@ -236,8 +299,12 @@ export default function SeguimientoPage() {
         
         toast.success('Seguimiento finalizado exitosamente')
         
-        // Refrescar la lista
-        fetchSeguimientos()
+        // Refrescar la lista - CORREGIR ESTA LÍNEA
+        if (isColaborator) {
+          fetchSeguimientos()
+        } else if (usuario?.usuarioId) {
+          fetchSeguimientosByUsuario(usuario.usuarioId)
+        }
         
       } catch (error) {
         console.error('Error al finalizar seguimiento:', error)
@@ -354,6 +421,14 @@ export default function SeguimientoPage() {
         </Card>
       </div>
     )
+  }
+
+  // LOG: Verificar rows que la tabla va a renderizar
+  // (esto debe ir justo antes del return)
+  // @ts-ignore
+  if (typeof table !== 'undefined' && table.getRowModel) {
+    // @ts-ignore
+    console.log('table.getRowModel().rows:', table.getRowModel().rows);
   }
 
   return (

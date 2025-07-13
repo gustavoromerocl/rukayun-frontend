@@ -73,7 +73,7 @@ import type { Animal } from "@/services/animalesService"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { AnimalCard } from "@/components/AnimalCard"
 import { useApi } from "@/hooks/useApi"
-import { AdopcionesService } from "@/services/adopcionesService"
+import { useAdopciones } from "@/hooks/useAdopciones"
 import { Textarea } from "@/components/ui/textarea"
 import { AnimalesService } from "@/services/animalesService"
 
@@ -276,19 +276,31 @@ export default function AnimalesPage() {
     loading, 
     error, 
     fetchAnimales, 
-    deleteAnimal,
+    deleteAnimal
   } = useAnimales()
 
-  const { accounts, instance } = useMsal()
+  const { solicitarAdopcion } = useAdopciones()
+
+  const { accounts } = useMsal()
   const { user } = useAppStore()
   const apiClient = useApi()
   const animalesService = new AnimalesService(apiClient)
-  const adopcionesService = new AdopcionesService(apiClient)
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  
   React.useEffect(() => {
+    // Evitar múltiples llamadas
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      return;
+    }
+    
+    console.log('🔄 useEffect ejecutándose por primera vez');
     fetchAnimales()
-  }, [fetchAnimales])
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, []) // Sin dependencias para evitar recreaciones
 
   // Efecto para refrescar la tabla cuando cambie el refreshTrigger
   React.useEffect(() => {
@@ -365,21 +377,16 @@ export default function AnimalesPage() {
         toast.error("Debes iniciar sesión para solicitar una adopción.");
         return;
       }
-      const tokenResponse = await instance.acquireTokenSilent({
-        account: accounts[0],
-        scopes: ["openid", "profile", "email"]
-      });
-      const accessToken = tokenResponse.accessToken;
       const usuarioId = user?.usuarioId;
       if (!usuarioId) {
         toast.error("No se pudo obtener el usuarioId. Intenta recargar la página.");
         return;
       }
-      await adopcionesService.solicitarAdopcion({
+      await solicitarAdopcion({
         usuarioId,
         animalId: animalAdopcion.animalId,
         descripcionFamilia: descripcionFamilia.trim()
-      }, accessToken);
+      });
       toast.success("¡Solicitud de adopción enviada exitosamente!");
       setAdopcionModalOpen(false);
       setAnimalAdopcion(null);

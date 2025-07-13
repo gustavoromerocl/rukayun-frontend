@@ -144,6 +144,72 @@ export function useAdopciones() {
     }
   }, [adopcionesService]);
 
+  // Solicitar adopción
+  const solicitarAdopcion = useCallback(async (data: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 Solicitar adopción...');
+      const result = await adopcionesService.solicitarAdopcion(data);
+      console.log('✅ Adopción solicitada exitosamente');
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al solicitar adopción');
+      console.error('Error solicitando adopción:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [adopcionesService]);
+
+  // Aprobar una solicitud de adopción
+  const aprobarAdopcion = useCallback(async (id: number) => {
+    console.log('🔄 Aprobando adopción con ID:', id);
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedAdopcion = await adopcionesService.aprobarAdopcion(id);
+      console.log('✅ Adopción aprobada exitosamente:', updatedAdopcion);
+      // Actualizar el estado local con la adopción actualizada
+      setAdopciones(prev => 
+        prev.map(adopcion => 
+          adopcion.adopcionId === id ? updatedAdopcion : adopcion
+        )
+      );
+      return updatedAdopcion;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar la adopción');
+      console.error('❌ Error aprobando adopción:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [adopcionesService]);
+
+  // Rechazar una solicitud de adopción
+  const rechazarAdopcion = useCallback(async (id: number) => {
+    console.log('🔄 Rechazando adopción con ID:', id);
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedAdopcion = await adopcionesService.rechazarAdopcion(id);
+      console.log('✅ Adopción rechazada exitosamente:', updatedAdopcion);
+      // Actualizar el estado local con la adopción actualizada
+      setAdopciones(prev => 
+        prev.map(adopcion => 
+          adopcion.adopcionId === id ? updatedAdopcion : adopcion
+        )
+      );
+      return updatedAdopcion;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar la adopción');
+      console.error('❌ Error rechazando adopción:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [adopcionesService]);
+
   // Limpiar error
   const clearError = useCallback(() => {
     setError(null);
@@ -161,6 +227,9 @@ export function useAdopciones() {
     fetchAdopcionesByEstado,
     fetchAdopcionesByUsuario,
     fetchAdopcionesByAnimal,
+    solicitarAdopcion,
+    aprobarAdopcion,
+    rechazarAdopcion,
     clearError,
   };
 } 

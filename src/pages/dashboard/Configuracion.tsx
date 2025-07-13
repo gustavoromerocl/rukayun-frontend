@@ -29,13 +29,23 @@ export default function Configuracion() {
     setActiveTab(isColaborator ? "perfil" : "apariencia")
   }, [isColaborator])
 
-  // Cargar datos de mi organización solo si es colaborador
+  // Cargar datos de mi organización solo si es colaborador - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  
   React.useEffect(() => {
     if (!isColaborator) {
       // Usuarios no colaboradores no tienen organización
       setLoading(false)
       return
     }
+
+    // Evitar múltiples llamadas
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      return;
+    }
+    
+    console.log('🔄 useEffect ejecutándose por primera vez');
 
     const cargarMiOrganizacion = async () => {
       setLoading(true)
@@ -53,7 +63,9 @@ export default function Configuracion() {
     }
 
     cargarMiOrganizacion()
-  }, [obtenerMiOrganizacion, isColaborator])
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, [isColaborator]) // Sin obtenerMiOrganizacion en las dependencias
 
   return (
     <div className="space-y-6">

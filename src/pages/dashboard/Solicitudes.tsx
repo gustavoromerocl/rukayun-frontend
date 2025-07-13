@@ -173,20 +173,66 @@ export default function SolicitudesPage() {
   const [solicitudToAction, setSolicitudToAction] = React.useState<Solicitud | null>(null)
 
   // Hooks para obtener datos y rol del usuario
-  const { adopciones, loading, error, fetchAdopciones, fetchAdopcionesByUsuario } = useAdopciones()
+  const { adopciones, loading, error, fetchAdopciones, fetchAdopcionesByUsuario, aprobarAdopcion, rechazarAdopcion } = useAdopciones()
   const { usuario } = useAuth()
   const { isColaborator } = useAppStore()
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente - SOLUCIÓN CON useRef
+  const hasLoadedRef = React.useRef(false);
+  const lastUserIdRef = React.useRef<number | null>(null);
+  const lastIsColaboratorRef = React.useRef<boolean | null>(null);
+  
   React.useEffect(() => {
-    if (isColaborator) {
-      // Colaboradores ven todas las solicitudes
-      fetchAdopciones()
-    } else if (usuario?.usuarioId) {
-      // Usuarios adoptantes ven solo sus solicitudes
-      fetchAdopcionesByUsuario(usuario.usuarioId)
+    const currentUserId = usuario?.usuarioId || null;
+    const currentIsColaborator = isColaborator;
+    
+    // Verificar si han cambiado el usuario o el rol
+    const userChanged = lastUserIdRef.current !== currentUserId;
+    const roleChanged = lastIsColaboratorRef.current !== currentIsColaborator;
+    
+    console.log('🔄 useEffect ejecutándose', {
+      currentUserId,
+      currentIsColaborator,
+      lastUserId: lastUserIdRef.current,
+      lastIsColaborator: lastIsColaboratorRef.current,
+      userChanged,
+      roleChanged,
+      hasLoaded: hasLoadedRef.current
+    });
+    
+    // Si cambió el usuario o el rol, resetear el flag
+    if (userChanged || roleChanged) {
+      console.log('🔄 Usuario o rol cambiado, reseteando hasLoadedRef');
+      hasLoadedRef.current = false;
+      lastUserIdRef.current = currentUserId;
+      lastIsColaboratorRef.current = currentIsColaborator;
     }
-  }, [fetchAdopciones, fetchAdopcionesByUsuario, isColaborator, usuario?.usuarioId])
+    
+    // Evitar múltiples llamadas para el mismo usuario/rol
+    if (hasLoadedRef.current) {
+      console.log('🔄 useEffect ya ejecutado para este usuario/rol, evitando llamada duplicada');
+      return;
+    }
+    
+    console.log('🔄 useEffect ejecutándose por primera vez para este usuario/rol');
+    
+    // Usar una función interna para evitar dependencias problemáticas
+    const loadData = () => {
+      if (isColaborator) {
+        console.log('📡 Cargando todas las solicitudes (colaborador)');
+        // Colaboradores ven todas las solicitudes
+        fetchAdopciones()
+      } else if (usuario?.usuarioId) {
+        console.log('📡 Cargando solicitudes del usuario:', usuario.usuarioId);
+        // Usuarios adoptantes ven solo sus solicitudes
+        fetchAdopcionesByUsuario(usuario.usuarioId)
+      }
+    }
+
+    loadData()
+    hasLoadedRef.current = true;
+    console.log('✅ useEffect completado, hasLoadedRef establecido en true');
+  }, [isColaborator, usuario?.usuarioId, fetchAdopciones, fetchAdopcionesByUsuario]) // Incluir las funciones en las dependencias
 
   const handleViewDetails = (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud)
@@ -513,6 +559,8 @@ export default function SolicitudesPage() {
         setIsOpen={setIsConfirmationOpen}
         action={confirmationAction}
         solicitud={solicitudToAction}
+        aprobarAdopcion={aprobarAdopcion}
+        rechazarAdopcion={rechazarAdopcion}
       />
     </div>
   );
@@ -604,11 +652,15 @@ function ConfirmationDialog({
     setIsOpen,
     action,
     solicitud,
+    aprobarAdopcion,
+    rechazarAdopcion,
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
     action: "Aprobar" | "Rechazar" | null
     solicitud: Solicitud | null
+    aprobarAdopcion: (id: number) => Promise<any>
+    rechazarAdopcion: (id: number) => Promise<any>
     }) {
     
     if (!solicitud || !action) return null
@@ -617,6 +669,20 @@ function ConfirmationDialog({
     
     const title = `¿Seguro que quieres ${action.toLowerCase()} la solicitud?`
     const description = `Se notificará al solicitante, ${solicitud.usuarioId}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
+
+    const handleConfirm = async () => {
+        try {
+            if (action === "Aprobar") {
+                await aprobarAdopcion(solicitud.adopcionId);
+            } else if (action === "Rechazar") {
+                await rechazarAdopcion(solicitud.adopcionId);
+            }
+            setIsOpen(false);
+        } catch (error) {
+            console.error('Error al procesar la acción:', error);
+            // El error ya está manejado en el hook
+        }
+    };
 
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -629,7 +695,7 @@ function ConfirmationDialog({
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
                         className={isApproving ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-                        onClick={() => console.log(`${action} solicitud ${solicitud.usuarioId}`)}
+                        onClick={handleConfirm}
                     >
                         Confirmar
                     </AlertDialogAction>

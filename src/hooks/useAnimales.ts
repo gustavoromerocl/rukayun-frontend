@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useApi } from './useApi';
-import { useMsal } from '@azure/msal-react';
 import { AnimalesService } from '@/services/animalesService';
 import type { 
   Animal, 
@@ -11,7 +10,6 @@ import type {
 
 export function useAnimales() {
   const apiClient = useApi();
-  const { instance } = useMsal();
   const [animales, setAnimales] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,38 +204,10 @@ export function useAnimales() {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Obtener el token de MSAL
-      const accounts = instance.getAllAccounts();
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No hay sesión activa');
-      }
+      // Usar el ApiClient para aprovechar el sistema de caché de tokens
+      const uploadResponse = await apiClient.post(`/animales/${animalId}/imagenes`, formData);
       
-      const response = await instance.acquireTokenSilent({
-        scopes: ["openid", "profile", "email"],
-        account: accounts[0],
-      });
-      
-      // Usar fetch directamente para enviar el archivo con el token
-      const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/animales/${animalId}/imagenes`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${response.idToken}`,
-        },
-        body: formData,
-      });
-      
-      if (!uploadResponse.ok) {
-        throw new Error(`Error al subir la imagen: ${uploadResponse.status} ${uploadResponse.statusText}`);
-      }
-      
-      // Verificar si hay contenido en la respuesta antes de intentar parsear JSON
-      const responseText = await uploadResponse.text();
-      if (responseText.trim()) {
-        return JSON.parse(responseText);
-      }
-      
-      // Si no hay contenido, retornar un objeto vacío o null
-      return null;
+      return uploadResponse;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
       console.error('Error uploading animal image:', err);
@@ -245,7 +215,7 @@ export function useAnimales() {
     } finally {
       setLoading(false);
     }
-  }, [instance]);
+  }, [apiClient]);
 
   // Eliminar imagen de animal
   const deleteAnimalImage = useCallback(async (animalId: number, imagenId: number) => {

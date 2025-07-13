@@ -75,7 +75,6 @@ export default function OrganizacionesPage() {
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
   const [isGestionarUsuariosOpen, setIsGestionarUsuariosOpen] = React.useState(false)
   const [selectedOrganizacion, setSelectedOrganizacion] = React.useState<Organizacion | null>(null)
-  const [refreshTrigger, setRefreshTrigger] = React.useState(0)
   const [searchTerm, setSearchTerm] = React.useState("")
 
   // Usar el hook de organizaciones
@@ -96,18 +95,7 @@ export default function OrganizacionesPage() {
   // Usar el hook de comunas
   const { comunas } = useComunas()
 
-  // Cargar datos al montar el componente
-  React.useEffect(() => {
-    fetchOrganizaciones()
-  }, [fetchOrganizaciones])
-
-  // Efecto para refrescar la tabla cuando cambie el refreshTrigger
-  React.useEffect(() => {
-    if (refreshTrigger > 0) {
-      console.log('🔄 Refrescando tabla por trigger:', refreshTrigger)
-      fetchOrganizaciones()
-    }
-  }, [refreshTrigger, fetchOrganizaciones])
+  // Removido el useEffect del componente - el hook useOrganizaciones ya maneja la carga inicial
 
   const handleEdit = (organizacion: Organizacion) => {
     setSelectedOrganizacion(organizacion)
@@ -412,7 +400,7 @@ export default function OrganizacionesPage() {
         isOpen={isFormOpen}
         setIsOpen={setIsFormOpen}
         organizacion={selectedOrganizacion}
-        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+        onRefresh={() => fetchOrganizaciones()}
         comunas={comunas}
         createOrganizacion={createOrganizacion}
         updateOrganizacion={updateOrganizacion}

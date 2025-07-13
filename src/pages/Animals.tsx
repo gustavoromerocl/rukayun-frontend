@@ -44,11 +44,6 @@ export default function Animals() {
       return;
     }
     try {
-      const tokenResponse = await instance.acquireTokenSilent({
-        account: accounts[0],
-        scopes: ["openid", "profile", "email"]
-      });
-      const accessToken = tokenResponse.accessToken;
       const usuarioId = user?.usuarioId;
       if (!usuarioId) {
         toast.error("No se pudo obtener el usuarioId. Intenta recargar la página.");
@@ -58,7 +53,7 @@ export default function Animals() {
         usuarioId,
         animalId: animal.animalId,
         descripcionFamilia: "La mejor familia"
-      }, accessToken);
+      });
       toast.success("¡Solicitud de adopción enviada exitosamente!");
     } catch (err: any) {
       toast.error(err?.message || "Error al enviar la solicitud de adopción.");

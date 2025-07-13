@@ -3,7 +3,7 @@ import { PawPrint } from "lucide-react";
 
 export function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen w-full bg-background flex items-center justify-center">
       <div className="text-center space-y-6">
         <div className="flex items-center justify-center space-x-2">
           <PawPrint className="w-8 h-8 text-primary animate-pulse" />

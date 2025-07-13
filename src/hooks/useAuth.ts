@@ -4,6 +4,7 @@ import { useApi } from './useApi';
 import { UsuariosService } from '@/services/usuariosService';
 import type { Usuario } from '@/services/usuariosService';
 import { useAppStore } from '@/lib/store';
+import { useAuthError } from './useAuthError';
 
 export function useAuth() {
   const { accounts } = useMsal();
@@ -11,11 +12,13 @@ export function useAuth() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   const { setIsColaborator, user: storeUser, setUser } = useAppStore();
+  const { handleAuthError } = useAuthError();
+  const hasInitialized = useRef(false);
 
   // Debug: Log cada vez que el componente se renderiza
-  console.log('🔄 useAuth render - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasLoaded:', hasLoadedRef.current);
+  console.log('🔄 useAuth render [', instanceId.current, '] - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasInitialized:', hasInitialized.current);
 
   // Memoizar el servicio para evitar recreaciones
   const usuariosService = useMemo(() => {
@@ -35,23 +38,16 @@ export function useAuth() {
     console.log('👤 Rol del usuario:', userRole, 'Es colaborador:', esColaborador);
   }, [setIsColaborator]);
 
-  // Verificar perfil del usuario desde el backend (solo primera vez)
+  // Verificar perfil del usuario desde el backend
   const verificarPerfil = useCallback(async () => {
-    console.log('🚀 verificarPerfil llamado');
+    console.log('🚀 verificarPerfil llamado [', instanceId.current, ']');
     
     if (!accounts || accounts.length === 0) {
       console.log('❌ No hay sesión activa para verificar perfil');
       setUsuario(null);
       setUser(null);
-      hasLoadedRef.current = false;
       setIsColaborator(false);
       return null;
-    }
-
-    // Evitar múltiples intentos simultáneos
-    if (loading || hasLoadedRef.current) {
-      console.log('⏳ Ya está cargando o ya cargado, saltando verificación');
-      return usuario;
     }
 
     setLoading(true);
@@ -65,7 +61,6 @@ export function useAuth() {
       console.log('✅ Perfil verificado:', usuarioData);
       setUsuario(usuarioData);
       setUser(usuarioData); // Guardar en Zustand
-      hasLoadedRef.current = true;
       
       // Determinar rol del usuario
       const userRole = usuarioData.rol || 'USER';
@@ -75,58 +70,91 @@ export function useAuth() {
       
     } catch (err) {
       console.error('❌ Error verificando perfil:', err);
+      
+      // Manejar errores de autenticación específicamente
+      if (err instanceof Error) {
+        if (err.message.includes('Sesión expirada') || 
+            err.message.includes('401') || 
+            err.message.includes('403')) {
+          handleAuthError(err);
+          return null;
+        }
+      }
+      
       setError(err instanceof Error ? err.message : 'Error al verificar perfil');
       setUsuario(null);
       setUser(null);
-      hasLoadedRef.current = false;
       setIsColaborator(false);
       return null;
     } finally {
       setLoading(false);
       console.log('🏁 verificarPerfil completado');
     }
-  }, [accounts, usuariosService, loading, usuario, determinarRolColaborador, setIsColaborator, setUser]);
+  }, [accounts, usuariosService, determinarRolColaborador, setIsColaborator, setUser]);
 
   // Cargar perfil cuando hay una sesión activa
   useEffect(() => {
-    console.log('📋 useEffect ejecutándose - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasLoaded:', hasLoadedRef.current);
+    console.log('📋 useAuth useEffect ejecutándose [', instanceId.current, '] - accounts:', accounts?.length, 'usuario:', !!usuario, 'loading:', loading, 'hasInitialized:', hasInitialized.current);
     
     const hasActiveAccount = accounts && accounts.length > 0;
     
+    // Evitar múltiples ejecuciones del useEffect
+    if (hasInitialized.current && hasActiveAccount && (usuario || storeUser)) {
+      console.log('⏭️ useAuth: Ya inicializado y con datos, saltando ejecución');
+      return;
+    }
+    
     if (hasActiveAccount) {
       // Si ya tenemos datos en Zustand, usarlos
-      if (storeUser && !usuario && !loading && !hasLoadedRef.current) {
-        console.log('📦 Usando datos del store de Zustand');
+      if (storeUser && !usuario && !loading) {
+        console.log('📦 useAuth: Usando datos del store de Zustand');
         setUsuario(storeUser);
-        hasLoadedRef.current = true;
+        hasInitialized.current = true;
         
         // Determinar rol del usuario desde el store
         const userRole = storeUser.rol || 'USER';
         determinarRolColaborador(userRole);
       }
-      // Si no hay datos en Zustand, verificar perfil
-      else if (!storeUser && !usuario && !loading && !hasLoadedRef.current) {
-        console.log('🔄 Sesión detectada, verificando perfil...');
+      // Si no hay datos en Zustand y no se ha inicializado, verificar perfil
+      else if (!storeUser && !usuario && !loading) {
+        console.log('🔄 useAuth: Sesión detectada, verificando perfil...');
+        hasInitialized.current = true;
         verificarPerfil();
       }
     } else {
-      console.log('❌ No hay sesión activa, limpiando usuario');
+      console.log('❌ useAuth: No hay sesión activa, limpiando usuario');
       setUsuario(null);
       setUser(null);
-      hasLoadedRef.current = false;
+      hasInitialized.current = false;
       setIsColaborator(false);
     }
-  }, [accounts, usuario, loading, storeUser, verificarPerfil, setIsColaborator, setUser, determinarRolColaborador]);
+  }, [accounts, usuario, loading, storeUser, verificarPerfil, setUser, determinarRolColaborador, setIsColaborator]);
 
   // Recargar perfil (forzar nueva verificación)
   const recargarPerfil = useCallback(() => {
-    hasLoadedRef.current = false;
+    console.log('🔄 recargarPerfil llamado [', instanceId.current, ']');
+    console.log('📊 Estado antes del reset:', {
+      hasInitialized: hasInitialized.current,
+      usuario: !!usuario,
+      accounts: accounts?.length
+    });
+    
+    hasInitialized.current = false;
     setUsuario(null);
     setUser(null);
+    setError(null);
+    
+    console.log('📊 Estado después del reset:', {
+      hasInitialized: hasInitialized.current
+    });
+    
     if (accounts && accounts.length > 0) {
+      console.log('✅ Hay cuentas activas, llamando verificarPerfil');
       verificarPerfil();
+    } else {
+      console.log('❌ No hay cuentas activas para recargar');
     }
-  }, [accounts, verificarPerfil, setUser]);
+  }, [accounts, verificarPerfil, setUser, usuario]);
 
   // Limpiar error
   const clearError = useCallback(() => {

@@ -43,6 +43,9 @@ export default function PerfilPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
+  // Debug temporal
+  console.log('🔄 PerfilPage render - usuario:', !!usuario, 'loading:', loading, 'error:', error, 'comunasLoading:', comunasLoading);
+  
   // Obtener datos del usuario desde MSAL para información adicional
   const msalUser = accounts[0]
   
@@ -114,6 +117,7 @@ export default function PerfilPage() {
 
   // Mostrar loading mientras se cargan los datos
   if (loading || comunasLoading) {
+    console.log('⏳ PerfilPage - Mostrando loading');
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-start">
@@ -281,6 +285,7 @@ export default function PerfilPage() {
 
   // Mostrar error si no se pudo cargar el perfil
   if (error) {
+    console.log('❌ PerfilPage - Mostrando error:', error);
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-start">
@@ -296,7 +301,10 @@ export default function PerfilPage() {
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
               <p className="mb-4">Error al cargar el perfil: {error}</p>
-              <Button onClick={recargarPerfil} variant="outline">
+              <Button onClick={() => {
+                console.log('🔄 PerfilPage - Botón reintentar clickeado');
+                recargarPerfil();
+              }} variant="outline">
                 Reintentar
               </Button>
             </div>
@@ -308,6 +316,7 @@ export default function PerfilPage() {
 
   // Si no hay usuario, mostrar mensaje
   if (!usuario) {
+    console.log('❌ PerfilPage - No hay usuario');
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-start">
@@ -323,7 +332,10 @@ export default function PerfilPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="mb-4">No se pudo cargar la información del perfil.</p>
-              <Button onClick={recargarPerfil} variant="outline">
+              <Button onClick={() => {
+                console.log('🔄 PerfilPage - Botón reintentar clickeado (sin usuario)');
+                recargarPerfil();
+              }} variant="outline">
                 Reintentar
               </Button>
             </div>
