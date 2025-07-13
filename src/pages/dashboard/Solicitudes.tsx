@@ -87,10 +87,24 @@ export const columns: ColumnDef<Solicitud>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "usuarioId",
-    header: "Usuario ID",
+    accessorKey: "adopcionId",
+    header: "ID Solicitud",
     cell: ({ row }) => (
-      <div className="font-medium">{row.original.usuarioId}</div>
+      <div className="font-medium">{row.original.adopcionId}</div>
+    )
+  },
+  {
+    accessorKey: "usuario.username",
+    header: "Correo",
+    cell: ({ row }) => (
+      <div className="font-medium">{row.original.usuario?.username}</div>
+    )
+  },
+  {
+    accessorKey: "usuario.telefono",
+    header: "Teléfono",
+    cell: ({ row }) => (
+      <div className="font-medium">{row.original.usuario?.telefono || 'N/A'}</div>
     )
   },
   {
@@ -482,14 +496,17 @@ export default function SolicitudesPage() {
           {/* Vista móvil */}
           <div className="md:hidden space-y-3">
             {table.getRowModel().rows.map((row) => {
-              const { usuarioId, animal, fechaCreacion, adopcionEstado } = row.original
+              const { usuario, animal, fechaCreacion, adopcionEstado } = row.original
               const actionsCell = row.getVisibleCells().find(c => c.column.id === 'actions');
 
               return (
                 <Card key={row.id}>
                   <CardContent className="p-4 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{usuarioId}</p>
+                      <p className="font-semibold truncate">Solicitud #{row.original.adopcionId}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {usuario?.username}
+                      </p>
                       <p className="text-sm text-muted-foreground truncate">
                         Para: <span className="font-medium text-foreground">{animal.nombre}</span>
                       </p>
@@ -579,7 +596,7 @@ function SolicitudDetailsDialog({
 }) {
   if (!solicitud) return null
 
-  const { animal, usuarioId, fechaCreacion } = solicitud
+  const { animal, usuario, fechaCreacion } = solicitud
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -591,7 +608,7 @@ function SolicitudDetailsDialog({
               <AvatarFallback>{animal.nombre.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <div className="text-xl font-bold">Solicitud de Adopción</div>
+              <div className="text-xl font-bold">Solicitud de Adopción #{solicitud.adopcionId}</div>
               <div className="text-sm text-muted-foreground">
                 {animal.nombre} • {new Date(fechaCreacion).toLocaleDateString('es-ES')}
               </div>
@@ -615,8 +632,12 @@ function SolicitudDetailsDialog({
               <div>
                 <h4 className="font-semibold text-lg mb-2">Información del Solicitante</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> Usuario ID: {usuarioId}</div>
-                  <div className="text-muted-foreground">Información de contacto no disponible</div>
+                  <div className="flex items-center gap-3"><User className="w-4 h-4 text-muted-foreground" /> Usuario ID: {usuario?.usuarioId}</div>
+                  <div><strong>Nombre:</strong> {usuario?.nombres} {usuario?.apellidos}</div>
+                  <div><strong>Correo:</strong> {usuario?.username}</div>
+                  <div><strong>Teléfono:</strong> {usuario?.telefono || 'No disponible'}</div>
+                  <div><strong>Dirección:</strong> {usuario?.direccion}</div>
+                  <div><strong>Comuna:</strong> {usuario?.comuna?.nombre}</div>
                 </div>
               </div>
             )}
@@ -667,8 +688,8 @@ function ConfirmationDialog({
 
     const isApproving = action === "Aprobar"
     
-    const title = `¿Seguro que quieres ${action.toLowerCase()} la solicitud?`
-    const description = `Se notificará al solicitante, ${solicitud.usuarioId}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
+    const title = `¿Seguro que quieres ${action.toLowerCase()} la solicitud #${solicitud.adopcionId}?`
+    const description = `Se notificará al solicitante, ${solicitud.usuario?.nombres} ${solicitud.usuario?.apellidos}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
 
     const handleConfirm = async () => {
         try {

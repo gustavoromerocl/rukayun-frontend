@@ -42,6 +42,7 @@ export default function PerfilPage() {
   const apiClient = useApi()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
   
   // Debug temporal
   console.log('🔄 PerfilPage render - usuario:', !!usuario, 'loading:', loading, 'error:', error, 'comunasLoading:', comunasLoading);
@@ -75,6 +76,12 @@ export default function PerfilPage() {
   const handleSave = async () => {
     if (!usuario) return
     
+    // Validar formulario antes de enviar
+    if (!validateForm()) {
+      toast.error('Por favor, completa todos los campos obligatorios')
+      return
+    }
+    
     setIsSaving(true)
     try {
       const usuariosService = new UsuariosService(apiClient)
@@ -82,13 +89,47 @@ export default function PerfilPage() {
       
       toast.success("Perfil actualizado correctamente")
       setIsEditing(false)
+      setFormErrors({})
       recargarPerfil() // Recargar datos del backend
-    } catch (error) {
-      toast.error("Error al actualizar el perfil")
+    } catch (error: any) {
       console.error("Error actualizando perfil:", error)
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error("Error al actualizar el perfil")
+      }
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {}
+    
+    if (!formData.nombres?.trim()) {
+      errors.nombres = 'Los nombres son obligatorios'
+    }
+    
+    if (!formData.apellidos?.trim()) {
+      errors.apellidos = 'Los apellidos son obligatorios'
+    }
+    
+    if (!formData.telefono?.trim()) {
+      errors.telefono = 'El teléfono es obligatorio'
+    }
+    
+    if (!formData.direccion?.trim()) {
+      errors.direccion = 'La dirección es obligatoria'
+    }
+    
+    if (!formData.comunaId) {
+      errors.comunaId = 'La comuna es obligatoria'
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleCancel = () => {
@@ -103,6 +144,7 @@ export default function PerfilPage() {
       })
     }
     setIsEditing(false)
+    setFormErrors({})
   }
 
   const getInitials = (nombres: string, apellidos: string) => {
@@ -406,41 +448,73 @@ export default function PerfilPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="nombres">Nombres</Label>
+                  <Label htmlFor="nombres">Nombres *</Label>
                   <Input 
                     id="nombres" 
                     value={formData.nombres}
-                    onChange={(e) => setFormData({...formData, nombres: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, nombres: e.target.value})
+                      if (formErrors.nombres) {
+                        setFormErrors(prev => ({ ...prev, nombres: '' }))
+                      }
+                    }}
                     disabled={!isEditing}
+                    className={formErrors.nombres ? 'border-red-500' : ''}
                   />
+                  {formErrors.nombres && (
+                    <p className="text-sm text-red-500">{formErrors.nombres}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="apellidos">Apellidos</Label>
+                  <Label htmlFor="apellidos">Apellidos *</Label>
                   <Input 
                     id="apellidos" 
                     value={formData.apellidos}
-                    onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, apellidos: e.target.value})
+                      if (formErrors.apellidos) {
+                        setFormErrors(prev => ({ ...prev, apellidos: '' }))
+                      }
+                    }}
                     disabled={!isEditing}
+                    className={formErrors.apellidos ? 'border-red-500' : ''}
                   />
+                  {formErrors.apellidos && (
+                    <p className="text-sm text-red-500">{formErrors.apellidos}</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="direccion">Dirección</Label>
+                <Label htmlFor="direccion">Dirección *</Label>
                 <Input 
                   id="direccion" 
                   value={formData.direccion}
-                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, direccion: e.target.value})
+                    if (formErrors.direccion) {
+                      setFormErrors(prev => ({ ...prev, direccion: '' }))
+                    }
+                  }}
                   disabled={!isEditing}
+                  className={formErrors.direccion ? 'border-red-500' : ''}
                 />
+                {formErrors.direccion && (
+                  <p className="text-sm text-red-500">{formErrors.direccion}</p>
+                )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="comuna">Comuna</Label>
+                <Label htmlFor="comuna">Comuna *</Label>
                 {isEditing ? (
                   <Select
                     value={formData.comunaId?.toString() || ""}
-                    onValueChange={(value) => setFormData({...formData, comunaId: value ? Number(value) : null})}
+                    onValueChange={(value) => {
+                      setFormData({...formData, comunaId: value ? Number(value) : null})
+                      if (formErrors.comunaId) {
+                        setFormErrors(prev => ({ ...prev, comunaId: '' }))
+                      }
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={formErrors.comunaId ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Selecciona una comuna" />
                     </SelectTrigger>
                     <SelectContent>
@@ -457,6 +531,9 @@ export default function PerfilPage() {
                     disabled
                     className="bg-muted"
                   />
+                )}
+                {formErrors.comunaId && (
+                  <p className="text-sm text-red-500">{formErrors.comunaId}</p>
                 )}
               </div>
             </CardContent>
@@ -485,14 +562,23 @@ export default function PerfilPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="telefono">Teléfono</Label>
+                <Label htmlFor="telefono">Teléfono *</Label>
                 <Input 
                   id="telefono" 
                   value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, telefono: e.target.value})
+                    if (formErrors.telefono) {
+                      setFormErrors(prev => ({ ...prev, telefono: '' }))
+                    }
+                  }}
                   disabled={!isEditing}
                   placeholder="+593 99 123 4567"
+                  className={formErrors.telefono ? 'border-red-500' : ''}
                 />
+                {formErrors.telefono && (
+                  <p className="text-sm text-red-500">{formErrors.telefono}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="telefono2">Teléfono 2 (Opcional)</Label>
