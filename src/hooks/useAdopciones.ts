@@ -144,6 +144,24 @@ export function useAdopciones() {
     }
   }, [adopcionesService]);
 
+  // Solicitar adopción
+  const solicitarAdopcion = useCallback(async (data: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 Solicitar adopción...');
+      const result = await adopcionesService.solicitarAdopcion(data);
+      console.log('✅ Adopción solicitada exitosamente');
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al solicitar adopción');
+      console.error('Error solicitando adopción:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [adopcionesService]);
+
   // Limpiar error
   const clearError = useCallback(() => {
     setError(null);
@@ -161,6 +179,7 @@ export function useAdopciones() {
     fetchAdopcionesByEstado,
     fetchAdopcionesByUsuario,
     fetchAdopcionesByAnimal,
+    solicitarAdopcion,
     clearError,
   };
 } 

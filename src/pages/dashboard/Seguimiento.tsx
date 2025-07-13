@@ -181,15 +181,42 @@ export default function SeguimientoPage() {
 
   // Cargar datos al montar el componente - SOLUCIÓN CON useRef
   const hasLoadedRef = React.useRef(false);
+  const lastUserIdRef = React.useRef<number | null>(null);
+  const lastIsColaboratorRef = React.useRef<boolean | null>(null);
   
   React.useEffect(() => {
-    // Evitar múltiples llamadas
+    const currentUserId = usuario?.usuarioId || null;
+    const currentIsColaborator = isColaborator;
+    
+    // Verificar si han cambiado el usuario o el rol
+    const userChanged = lastUserIdRef.current !== currentUserId;
+    const roleChanged = lastIsColaboratorRef.current !== currentIsColaborator;
+    
+    console.log('🔄 useEffect ejecutándose', {
+      currentUserId,
+      currentIsColaborator,
+      lastUserId: lastUserIdRef.current,
+      lastIsColaborator: lastIsColaboratorRef.current,
+      userChanged,
+      roleChanged,
+      hasLoaded: hasLoadedRef.current
+    });
+    
+    // Si cambió el usuario o el rol, resetear el flag
+    if (userChanged || roleChanged) {
+      console.log('🔄 Usuario o rol cambiado, reseteando hasLoadedRef');
+      hasLoadedRef.current = false;
+      lastUserIdRef.current = currentUserId;
+      lastIsColaboratorRef.current = currentIsColaborator;
+    }
+    
+    // Evitar múltiples llamadas para el mismo usuario/rol
     if (hasLoadedRef.current) {
-      console.log('🔄 useEffect ya ejecutado, evitando llamada duplicada');
+      console.log('🔄 useEffect ya ejecutado para este usuario/rol, evitando llamada duplicada');
       return;
     }
     
-    console.log('🔄 useEffect ejecutándose por primera vez');
+    console.log('🔄 useEffect ejecutándose por primera vez para este usuario/rol');
     
     // Usar una función interna para evitar dependencias problemáticas
     const loadData = () => {
@@ -207,7 +234,7 @@ export default function SeguimientoPage() {
     loadData()
     hasLoadedRef.current = true;
     console.log('✅ useEffect completado, hasLoadedRef establecido en true');
-  }, [isColaborator, usuario?.usuarioId]) // Sin hasLoaded en las dependencias
+  }, [isColaborator, usuario?.usuarioId, fetchSeguimientos, fetchSeguimientosByUsuario]) // Incluir las funciones en las dependencias
 
   // Transformar datos del backend para la tabla
   const tableData: SeguimientoTable[] = React.useMemo(() => {
