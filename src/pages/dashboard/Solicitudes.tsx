@@ -173,7 +173,7 @@ export default function SolicitudesPage() {
   const [solicitudToAction, setSolicitudToAction] = React.useState<Solicitud | null>(null)
 
   // Hooks para obtener datos y rol del usuario
-  const { adopciones, loading, error, fetchAdopciones, fetchAdopcionesByUsuario } = useAdopciones()
+  const { adopciones, loading, error, fetchAdopciones, fetchAdopcionesByUsuario, aprobarAdopcion, rechazarAdopcion } = useAdopciones()
   const { usuario } = useAuth()
   const { isColaborator } = useAppStore()
 
@@ -559,6 +559,8 @@ export default function SolicitudesPage() {
         setIsOpen={setIsConfirmationOpen}
         action={confirmationAction}
         solicitud={solicitudToAction}
+        aprobarAdopcion={aprobarAdopcion}
+        rechazarAdopcion={rechazarAdopcion}
       />
     </div>
   );
@@ -650,11 +652,15 @@ function ConfirmationDialog({
     setIsOpen,
     action,
     solicitud,
+    aprobarAdopcion,
+    rechazarAdopcion,
     }: {
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
     action: "Aprobar" | "Rechazar" | null
     solicitud: Solicitud | null
+    aprobarAdopcion: (id: number) => Promise<any>
+    rechazarAdopcion: (id: number) => Promise<any>
     }) {
     
     if (!solicitud || !action) return null
@@ -663,6 +669,20 @@ function ConfirmationDialog({
     
     const title = `¿Seguro que quieres ${action.toLowerCase()} la solicitud?`
     const description = `Se notificará al solicitante, ${solicitud.usuarioId}, sobre la decisión para la adopción de ${solicitud.animal.nombre}.`
+
+    const handleConfirm = async () => {
+        try {
+            if (action === "Aprobar") {
+                await aprobarAdopcion(solicitud.adopcionId);
+            } else if (action === "Rechazar") {
+                await rechazarAdopcion(solicitud.adopcionId);
+            }
+            setIsOpen(false);
+        } catch (error) {
+            console.error('Error al procesar la acción:', error);
+            // El error ya está manejado en el hook
+        }
+    };
 
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -675,7 +695,7 @@ function ConfirmationDialog({
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
                         className={isApproving ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-                        onClick={() => console.log(`${action} solicitud ${solicitud.usuarioId}`)}
+                        onClick={handleConfirm}
                     >
                         Confirmar
                     </AlertDialogAction>

@@ -116,4 +116,14 @@ export class AdopcionesService {
   async solicitarAdopcion(data: SolicitarAdopcionRequest): Promise<any> {
     return this.apiClient.post<any>('/adopciones/solicitar', data);
   }
+
+  // Aprobar una solicitud de adopción
+  async aprobarAdopcion(id: number): Promise<Adopcion> {
+    return this.apiClient.post<Adopcion>(`/adopciones/${id}/aprobar`);
+  }
+
+  // Rechazar una solicitud de adopción
+  async rechazarAdopcion(id: number): Promise<Adopcion> {
+    return this.apiClient.post<Adopcion>(`/adopciones/${id}/rechazar`);
+  }
 } 
