@@ -812,9 +812,15 @@ function GestionarUsuariosDialog({
       toast.success('Usuario agregado exitosamente')
       setSelectedUsuarioId('')
       loadUsuarios() // Recargar la lista
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error agregando usuario:', error)
-      toast.error('Error al agregar el usuario')
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error('Error al agregar el usuario')
+      }
     } finally {
       setAddingUser(false)
     }
@@ -828,9 +834,15 @@ function GestionarUsuariosDialog({
       await removerUsuarioDeOrganizacion(organizacion.organizacionId, usuarioId)
       toast.success('Usuario removido exitosamente')
       loadUsuarios() // Recargar la lista
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removiendo usuario:', error)
-      toast.error('Error al remover el usuario')
+      
+      // Parsear el error del backend para mostrar el detail en toaster
+      if (error.response?.status === 400 && error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
+      } else {
+        toast.error('Error al remover el usuario')
+      }
     } finally {
       setRemovingUserId(null)
     }
