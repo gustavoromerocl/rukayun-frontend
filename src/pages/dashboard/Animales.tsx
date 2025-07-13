@@ -149,13 +149,20 @@ export const columns: ColumnDef<AnimalTable>[] = [
   {
     accessorKey: "nombre",
     header: "Nombre",
+    enableColumnFilter: true,
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("nombre")}</div>
     ),
   },
   {
-    accessorKey: "especie",
+    accessorFn: (row) => row.especie.nombre,
+    id: "especie",
     header: "Especie",
+    enableColumnFilter: true,
+    filterFn: (row, id, value) => {
+      if (!value || value === "") return true;
+      return row.getValue(id) === value;
+    },
     cell: ({ row }) => (
       <Badge variant="outline" className="text-xs">
         {row.original.especie.nombre}
@@ -197,6 +204,12 @@ export const columns: ColumnDef<AnimalTable>[] = [
   {
     accessorKey: "publicado",
     header: "Estado",
+    enableColumnFilter: true,
+    filterFn: (row, id, value) => {
+      if (!value || value === "") return true;
+      const published = row.getValue(id) as boolean;
+      return value === "true" ? published : !published;
+    },
     cell: ({ row }) => (
       <Badge variant={row.original.publicado ? "default" : "secondary"}>
         {row.original.publicado ? "Publicado" : "Borrador"}
@@ -278,6 +291,15 @@ export default function AnimalesPage() {
     fetchAnimales, 
     deleteAnimal
   } = useAnimales()
+
+  // LOG: Verificar estructura de datos
+  React.useEffect(() => {
+    if (animales && animales.length > 0) {
+      console.log('🐾 Datos de animales:', animales[0]);
+      console.log('🐾 Especies disponibles:', [...new Set(animales.map(a => a.especie.nombre))]);
+      console.log('🐾 Estados disponibles:', [...new Set(animales.map(a => a.publicado))]);
+    }
+  }, [animales]);
 
   const { solicitarAdopcion } = useAdopciones()
 
