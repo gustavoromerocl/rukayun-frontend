@@ -1021,6 +1021,7 @@ function AnimalFormDialog({
     const [imagePreview, setImagePreview] = React.useState<string>('')
     const [currentServerImage, setCurrentServerImage] = React.useState<{ animalId: number; imagenId: number; url: string } | null>(null)
     const [needsRefresh, setNeedsRefresh] = React.useState(false)
+    const [formErrors, setFormErrors] = React.useState<{[key: string]: string}>({})
 
     // Estado del formulario
     const [formData, setFormData] = React.useState({
@@ -1142,10 +1143,63 @@ function AnimalFormDialog({
         setImageFile(null)
         setImagePreview('')
         setCurrentServerImage(null)
+        setFormErrors({})
+    }
+
+    const validateForm = () => {
+        const errors: {[key: string]: string} = {}
+        
+        if (!formData.nombre?.trim()) {
+            errors.nombre = 'El nombre es obligatorio'
+        }
+        
+        if (!formData.peso || formData.peso <= 0) {
+            errors.peso = 'El peso debe ser mayor a 0'
+        }
+        
+        if (!formData.fechaNacimiento?.trim()) {
+            errors.fechaNacimiento = 'La fecha de nacimiento es obligatoria'
+        } else {
+            const fechaNac = new Date(formData.fechaNacimiento)
+            const hoy = new Date()
+            if (fechaNac > hoy) {
+                errors.fechaNacimiento = 'La fecha de nacimiento no puede ser futura'
+            }
+        }
+        
+        if (!formData.especieId) {
+            errors.especieId = 'La especie es obligatoria'
+        }
+        
+        if (!formData.sexoId) {
+            errors.sexoId = 'El sexo es obligatorio'
+        }
+        
+        if (!formData.tamanoId) {
+            errors.tamanoId = 'El tamaño es obligatorio'
+        }
+        
+        if (!formData.nivelActividadId) {
+            errors.nivelActividadId = 'El nivel de actividad es obligatorio'
+        }
+        
+        if (!formData.descripcion?.trim()) {
+            errors.descripcion = 'La descripción es obligatoria'
+        }
+        
+        setFormErrors(errors)
+        return Object.keys(errors).length === 0
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        // Validar formulario antes de enviar
+        if (!validateForm()) {
+            toast.error('Por favor, completa todos los campos obligatorios')
+            return
+        }
+        
         setIsSubmitting(true)
         try {
             let updatedAnimal;
@@ -1206,9 +1260,15 @@ function AnimalFormDialog({
             if (!imageFile || !updatedAnimal.animalId) {
                 toast.success(`¡Animal ${animal ? 'actualizado' : 'creado'} exitosamente!`)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Error al ${animal ? 'actualizar' : 'crear'} animal:`, error)
-            toast.error(`Ocurrió un error al ${animal ? 'actualizar' : 'crear'} el animal. Intenta nuevamente.`)
+            
+            // Parsear el error del backend para mostrar el detail en toaster
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                toast.error(error.response.data.detail)
+            } else {
+                toast.error(`Ocurrió un error al ${animal ? 'actualizar' : 'crear'} el animal. Intenta nuevamente.`)
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -1258,10 +1318,18 @@ function AnimalFormDialog({
                             <Input 
                                 id="nombre" 
                                 value={formData.nombre} 
-                                onChange={handleValueChange} 
+                                onChange={(e) => {
+                                    handleValueChange(e)
+                                    if (formErrors.nombre) {
+                                        setFormErrors(prev => ({ ...prev, nombre: '' }))
+                                    }
+                                }} 
                                 placeholder="Ej: Luna, Max..."
-                                required
+                                className={formErrors.nombre ? 'border-red-500' : ''}
                             />
+                            {formErrors.nombre && (
+                                <p className="text-sm text-red-500">{formErrors.nombre}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
@@ -1271,10 +1339,18 @@ function AnimalFormDialog({
                                 type="number"
                                 step="0.1"
                                 value={formData.peso} 
-                                onChange={handleValueChange} 
+                                onChange={(e) => {
+                                    handleValueChange(e)
+                                    if (formErrors.peso) {
+                                        setFormErrors(prev => ({ ...prev, peso: '' }))
+                                    }
+                                }} 
                                 placeholder="Ej: 15.5"
-                                required
+                                className={formErrors.peso ? 'border-red-500' : ''}
                             />
+                            {formErrors.peso && (
+                                <p className="text-sm text-red-500">{formErrors.peso}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
@@ -1283,15 +1359,31 @@ function AnimalFormDialog({
                                 id="fechaNacimiento" 
                                 type="date"
                                 value={formData.fechaNacimiento} 
-                                onChange={handleValueChange} 
-                                required
+                                onChange={(e) => {
+                                    handleValueChange(e)
+                                    if (formErrors.fechaNacimiento) {
+                                        setFormErrors(prev => ({ ...prev, fechaNacimiento: '' }))
+                                    }
+                                }} 
+                                className={formErrors.fechaNacimiento ? 'border-red-500' : ''}
                             />
+                            {formErrors.fechaNacimiento && (
+                                <p className="text-sm text-red-500">{formErrors.fechaNacimiento}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
                             <Label htmlFor="especieId">Especie *</Label>
-                            <Select value={formData.especieId.toString()} onValueChange={handleSelectChange('especieId')}>
-                                <SelectTrigger>
+                            <Select 
+                                value={formData.especieId.toString()} 
+                                onValueChange={(value) => {
+                                    handleSelectChange('especieId')(value)
+                                    if (formErrors.especieId) {
+                                        setFormErrors(prev => ({ ...prev, especieId: '' }))
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className={formErrors.especieId ? 'border-red-500' : ''}>
                                     <SelectValue placeholder="Selecciona la especie" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1299,12 +1391,23 @@ function AnimalFormDialog({
                                     <SelectItem value="2">Gato</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {formErrors.especieId && (
+                                <p className="text-sm text-red-500">{formErrors.especieId}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
                             <Label htmlFor="sexoId">Sexo *</Label>
-                            <Select value={formData.sexoId.toString()} onValueChange={handleSelectChange('sexoId')}>
-                                <SelectTrigger>
+                            <Select 
+                                value={formData.sexoId.toString()} 
+                                onValueChange={(value) => {
+                                    handleSelectChange('sexoId')(value)
+                                    if (formErrors.sexoId) {
+                                        setFormErrors(prev => ({ ...prev, sexoId: '' }))
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className={formErrors.sexoId ? 'border-red-500' : ''}>
                                     <SelectValue placeholder="Selecciona el sexo" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1312,12 +1415,23 @@ function AnimalFormDialog({
                                     <SelectItem value="2">Hembra</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {formErrors.sexoId && (
+                                <p className="text-sm text-red-500">{formErrors.sexoId}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
                             <Label htmlFor="tamanoId">Tamaño *</Label>
-                            <Select value={formData.tamanoId.toString()} onValueChange={handleSelectChange('tamanoId')}>
-                                <SelectTrigger>
+                            <Select 
+                                value={formData.tamanoId.toString()} 
+                                onValueChange={(value) => {
+                                    handleSelectChange('tamanoId')(value)
+                                    if (formErrors.tamanoId) {
+                                        setFormErrors(prev => ({ ...prev, tamanoId: '' }))
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className={formErrors.tamanoId ? 'border-red-500' : ''}>
                                     <SelectValue placeholder="Selecciona el tamaño" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1326,12 +1440,23 @@ function AnimalFormDialog({
                                     <SelectItem value="3">Grande</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {formErrors.tamanoId && (
+                                <p className="text-sm text-red-500">{formErrors.tamanoId}</p>
+                            )}
                         </div>
                         
                         <div className="space-y-2">
                             <Label htmlFor="nivelActividadId">Nivel de Actividad *</Label>
-                            <Select value={formData.nivelActividadId.toString()} onValueChange={handleSelectChange('nivelActividadId')}>
-                                <SelectTrigger>
+                            <Select 
+                                value={formData.nivelActividadId.toString()} 
+                                onValueChange={(value) => {
+                                    handleSelectChange('nivelActividadId')(value)
+                                    if (formErrors.nivelActividadId) {
+                                        setFormErrors(prev => ({ ...prev, nivelActividadId: '' }))
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className={formErrors.nivelActividadId ? 'border-red-500' : ''}>
                                     <SelectValue placeholder="Selecciona el nivel" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1340,17 +1465,29 @@ function AnimalFormDialog({
                                     <SelectItem value="3">Alto</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {formErrors.nivelActividadId && (
+                                <p className="text-sm text-red-500">{formErrors.nivelActividadId}</p>
+                            )}
                         </div>
                     </div>
                     
                     <div className="space-y-2">
-                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Label htmlFor="descripcion">Descripción *</Label>
                         <Input 
                             id="descripcion" 
                             value={formData.descripcion} 
-                            onChange={handleValueChange} 
+                            onChange={(e) => {
+                                handleValueChange(e)
+                                if (formErrors.descripcion) {
+                                    setFormErrors(prev => ({ ...prev, descripcion: '' }))
+                                }
+                            }} 
                             placeholder="Describe al animal..."
+                            className={formErrors.descripcion ? 'border-red-500' : ''}
                         />
+                        {formErrors.descripcion && (
+                            <p className="text-sm text-red-500">{formErrors.descripcion}</p>
+                        )}
                     </div>
                     
                     <div className="flex items-center space-x-2">
