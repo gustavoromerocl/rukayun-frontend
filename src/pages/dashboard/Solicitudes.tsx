@@ -276,6 +276,7 @@ export default function SolicitudesPage() {
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    globalFilterFn: "includesString",
     state: {
       sorting,
       columnFilters,

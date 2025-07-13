@@ -90,6 +90,7 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
   {
     accessorKey: "adoptanteNombre",
     header: "Adoptante",
+    enableColumnFilter: true,
     cell: ({ row }) => (
       <div className="font-medium">{row.getValue("adoptanteNombre")}</div>
     )
@@ -109,6 +110,7 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
   {
     accessorKey: "estado",
     header: "Estado",
+    enableColumnFilter: true,
     cell: ({ row }) => {
         const estado = row.getValue("estado") as string
         
