@@ -31,14 +31,15 @@ export function useSeguimientos() {
     setError(null);
     try {
       const response = await seguimientosService.getSeguimientos(filters);
-      setSeguimientos(response.items);
+      const data = Array.isArray(response) ? response : response.items;
+      setSeguimientos(data);
       setPagination({
-        totalCount: response.totalCount,
-        page: response.page,
-        pageSize: response.pageSize,
-        totalPages: response.totalPages,
-        hasPreviousPage: response.hasPreviousPage,
-        hasNextPage: response.hasNextPage,
+        totalCount: Array.isArray(response) ? data.length : response.totalCount,
+        page: Array.isArray(response) ? 1 : response.page,
+        pageSize: Array.isArray(response) ? data.length : response.pageSize,
+        totalPages: Array.isArray(response) ? 1 : response.totalPages,
+        hasPreviousPage: Array.isArray(response) ? false : response.hasPreviousPage,
+        hasNextPage: Array.isArray(response) ? false : response.hasNextPage,
       });
     } catch (err) {
       setSeguimientos([]);
@@ -144,14 +145,15 @@ export function useSeguimientos() {
     setError(null);
     try {
       const response = await seguimientosService.getSeguimientosByUsuario(usuarioId, filters);
-      setSeguimientos(response.items);
+      const data = Array.isArray(response) ? response : response.items;
+      setSeguimientos(data);
       setPagination({
-        totalCount: response.totalCount,
-        page: response.page,
-        pageSize: response.pageSize,
-        totalPages: response.totalPages,
-        hasPreviousPage: response.hasPreviousPage,
-        hasNextPage: response.hasNextPage,
+        totalCount: Array.isArray(response) ? data.length : response.totalCount,
+        page: Array.isArray(response) ? 1 : response.page,
+        pageSize: Array.isArray(response) ? data.length : response.pageSize,
+        totalPages: Array.isArray(response) ? 1 : response.totalPages,
+        hasPreviousPage: Array.isArray(response) ? false : response.hasPreviousPage,
+        hasNextPage: Array.isArray(response) ? false : response.hasNextPage,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al obtener seguimientos por usuario');

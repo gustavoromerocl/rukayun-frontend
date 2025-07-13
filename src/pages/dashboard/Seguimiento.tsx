@@ -179,6 +179,9 @@ export default function SeguimientoPage() {
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
 
+  // LOG: Verificar datos crudos del backend
+  console.log('seguimientos:', seguimientos);
+
   // Cargar datos al montar el componente - SOLUCIÓN CON useRef
   const hasLoadedRef = React.useRef(false);
   const lastUserIdRef = React.useRef<number | null>(null);
@@ -239,17 +242,31 @@ export default function SeguimientoPage() {
   // Transformar datos del backend para la tabla
   const tableData: SeguimientoTable[] = React.useMemo(() => {
     if (!seguimientos || !Array.isArray(seguimientos)) {
+      console.log('tableData: seguimientos vacío o no array');
       return [];
     }
-    
-    return seguimientos.map(seguimiento => ({
-      ...seguimiento,
-      animalNombre: seguimiento.adopcion?.animal?.nombre || 'N/A',
-      adoptanteNombre: seguimiento.adopcion?.adoptante ? 
-        `${seguimiento.adopcion.adoptante.nombres} ${seguimiento.adopcion.adoptante.apellidos}` : 
-        'N/A'
-    }))
-  }, [seguimientos])
+    const data = seguimientos.map(s => {
+      const anyS = s as any;
+      return {
+        ...s,
+        animalNombre: anyS.animalNombre || s.adopcion?.animal?.nombre || 'N/A',
+        adoptanteNombre: anyS.usuarioNombre || (
+          s.adopcion?.adoptante
+            ? `${s.adopcion.adoptante.nombres} ${s.adopcion.adoptante.apellidos}`
+            : 'N/A'
+        ),
+        estado: anyS.seguimientoEstado?.nombre || s.estado || 'N/A',
+        fechaSeguimiento: anyS.fechaInteraccion || s.fechaSeguimiento || 'N/A',
+      };
+    });
+    console.log('tableData: mapeado', data);
+    return data;
+  }, [seguimientos]);
+
+  // LOG: Verificar datos que llegan a la tabla
+  React.useEffect(() => {
+    console.log('tableData (useEffect):', tableData);
+  }, [tableData]);
 
   const handleRegisterInteraction = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
@@ -404,6 +421,14 @@ export default function SeguimientoPage() {
         </Card>
       </div>
     )
+  }
+
+  // LOG: Verificar rows que la tabla va a renderizar
+  // (esto debe ir justo antes del return)
+  // @ts-ignore
+  if (typeof table !== 'undefined' && table.getRowModel) {
+    // @ts-ignore
+    console.log('table.getRowModel().rows:', table.getRowModel().rows);
   }
 
   return (

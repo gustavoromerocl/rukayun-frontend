@@ -292,9 +292,8 @@ describe('AdopcionesService', () => {
         usuarioId: 1,
         descripcionFamilia: 'Familia responsable',
       };
-      const token = 'test-token';
 
-      const result = await adopcionesService.solicitarAdopcion(solicitudData, token);
+      const result = await adopcionesService.solicitarAdopcion(solicitudData);
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/adopciones/solicitar'),

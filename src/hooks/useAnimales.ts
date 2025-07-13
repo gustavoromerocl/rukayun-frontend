@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useApi } from './useApi';
-import { useMsal } from '@azure/msal-react';
 import { AnimalesService } from '@/services/animalesService';
 import type { 
   Animal, 
@@ -11,7 +10,6 @@ import type {
 
 export function useAnimales() {
   const apiClient = useApi();
-  const { instance } = useMsal();
   const [animales, setAnimales] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

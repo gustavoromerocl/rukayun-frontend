@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ActivityChart } from "@/components/charts/ActivityChart"
-import { useAuth } from "@/hooks/useAuth"
 import { useAppStore } from "@/lib/store"
 import { useAdopciones } from "@/hooks/useAdopciones"
 import { useSeguimientos } from "@/hooks/useSeguimientos"
@@ -86,7 +85,6 @@ const pendingTasks = [
 ];
 
 export default function Overview() {
-  const { usuario } = useAuth()
   const { isColaborator } = useAppStore()
   const { adopciones } = useAdopciones()
   const { seguimientos } = useSeguimientos()

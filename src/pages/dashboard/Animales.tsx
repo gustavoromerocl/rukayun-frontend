@@ -73,7 +73,6 @@ import type { Animal } from "@/services/animalesService"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { AnimalCard } from "@/components/AnimalCard"
 import { useApi } from "@/hooks/useApi"
-import { AdopcionesService } from "@/services/adopcionesService"
 import { useAdopciones } from "@/hooks/useAdopciones"
 import { Textarea } from "@/components/ui/textarea"
 import { AnimalesService } from "@/services/animalesService"
@@ -282,7 +281,7 @@ export default function AnimalesPage() {
 
   const { solicitarAdopcion } = useAdopciones()
 
-  const { accounts, instance } = useMsal()
+  const { accounts } = useMsal()
   const { user } = useAppStore()
   const apiClient = useApi()
   const animalesService = new AnimalesService(apiClient)
