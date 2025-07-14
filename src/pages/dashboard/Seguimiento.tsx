@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, FileText, CheckCircle2, History, Plus } from "lucide-react"
+import { MoreHorizontal, Search, FileText, CheckCircle2, History, Plus, Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -134,8 +134,8 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => meta.handleViewHistory(row.original)}>
-                <History className="mr-2 h-4 w-4" /> Ver Historial
+            <DropdownMenuItem onClick={() => meta.handleViewDetails(row.original)}>
+                <Eye className="mr-2 h-4 w-4" /> Ver Detalles
             </DropdownMenuItem>
             {isColaborator && (
               <>
@@ -167,7 +167,7 @@ export default function SeguimientoPage() {
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
-  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<SeguimientoTable | null>(null)
@@ -297,9 +297,9 @@ export default function SeguimientoPage() {
     setIsRegisterOpen(true)
   }
 
-  const handleViewHistory = (seguimiento: SeguimientoTable) => {
+  const handleViewDetails = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
-    setIsHistoryOpen(true)
+    setIsDetailsOpen(true)
   }
 
   const handleFinishFollowUp = (seguimiento: SeguimientoTable) => {
@@ -354,7 +354,7 @@ export default function SeguimientoPage() {
     },
     meta: {
       handleRegisterInteraction,
-      handleViewHistory,
+      handleViewDetails,
       handleFinishFollowUp,
       isColaborator,
     },
@@ -668,9 +668,9 @@ export default function SeguimientoPage() {
         setIsOpen={setIsRegisterOpen} 
         seguimiento={selectedSeguimiento} 
       />
-      <HistorialDialog
-        isOpen={isHistoryOpen}
-        setIsOpen={setIsHistoryOpen}
+      <DetallesDialog
+        isOpen={isDetailsOpen}
+        setIsOpen={setIsDetailsOpen}
         seguimiento={selectedSeguimiento}
       />
       <FinalizarDialog
@@ -742,13 +742,31 @@ function RegistrarInteraccionDialog({
     )
 }
 
-const historialFalso = [
-    { fecha: "2024-05-20", nota: "Llamada inicial. El adoptante informa que Max se está adaptando bien. Se programa próxima llamada." },
-    { fecha: "2024-04-15", nota: "Visita domiciliaria. El entorno es adecuado y seguro. Max parece feliz." },
-    { fecha: "2024-03-10", nota: "Entrega del animal. Se firman todos los documentos." },
-]
+// Tipo para los detalles del seguimiento desde el backend
+type SeguimientoDetalle = {
+    seguimientoId: number;
+    fechaInteraccion: string;
+    fechaCreacion: string;
+    descripcion: string;
+    observacion?: string;
+    fechaActualizacion?: string;
+    fechaCierre?: string;
+    adopcionId: number;
+    animalId: number;
+    usuarioId: number;
+    usuarioNombre: string;
+    animalNombre: string;
+    seguimientoTipo: {
+        seguimientoTipoId: number;
+        nombre: string;
+    };
+    seguimientoEstado: {
+        seguimientoEstadoId: number;
+        nombre: string;
+    };
+}
 
-function HistorialDialog({
+function DetallesDialog({
     isOpen,
     setIsOpen,
     seguimiento,
@@ -757,38 +775,181 @@ function HistorialDialog({
     setIsOpen: (isOpen: boolean) => void
     seguimiento: SeguimientoTable | null
     }) {
+    
+    const [detalles, setDetalles] = React.useState<SeguimientoDetalle | null>(null)
+    const [loading, setLoading] = React.useState(false)
+    const [error, setError] = React.useState<string | null>(null)
+    
+    // Usar el hook de seguimientos para acceder al método fetchSeguimiento
+    const { fetchSeguimiento } = useSeguimientos()
+
+    // Función para obtener los detalles del seguimiento
+    const fetchDetalles = async (seguimientoId: number) => {
+        setLoading(true)
+        setError(null)
+        try {
+            const data = await fetchSeguimiento(seguimientoId)
+            setDetalles(data)
+        } catch (err) {
+            console.error('Error al obtener detalles del seguimiento:', err)
+            setError(err instanceof Error ? err.message : 'Error al cargar los detalles')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Cargar detalles cuando se abre el diálogo
+    React.useEffect(() => {
+        if (isOpen && seguimiento) {
+            fetchDetalles(seguimiento.seguimientoId)
+        }
+    }, [isOpen, seguimiento])
+
+    const handleClose = () => {
+        setIsOpen(false)
+        setDetalles(null)
+        setError(null)
+    }
 
     if (!seguimiento) return null
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Historial de Seguimiento</DialogTitle>
+                    <DialogTitle>Detalles del Seguimiento</DialogTitle>
                     <DialogDescription>
-                        Mostrando el historial para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
+                        Información detallada del seguimiento para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <div className="relative pl-6 space-y-6">
-                        {/* Línea de tiempo vertical */}
-                        <div className="absolute left-9 top-0 h-full w-0.5 bg-border" />
-
-                        {historialFalso.map((item, index) => (
-                            <div key={index} className="relative flex items-start">
-                                <div className="absolute left-0 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary -translate-x-1/2">
-                                    <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
-                                </div>
-                                <div className="ml-12">
-                                    <p className="font-semibold text-sm">{new Date(item.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                                    <p className="text-muted-foreground text-sm">{item.nota}</p>
-                                </div>
-                            </div>
-                        ))}
+                
+                {loading && (
+                    <div className="py-8 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-sm text-muted-foreground mt-2">Cargando detalles...</p>
                     </div>
-                </div>
+                )}
+
+                {error && (
+                    <div className="py-4">
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                            <p className="text-sm text-red-600">{error}</p>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => seguimiento && fetchDetalles(seguimiento.seguimientoId)}
+                                className="mt-2"
+                            >
+                                Reintentar
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {detalles && !loading && (
+                    <div className="py-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">ID del Seguimiento</Label>
+                                <p className="text-sm">{detalles.seguimientoId}</p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Estado</Label>
+                                <Badge variant={detalles.seguimientoEstado.nombre === 'Activo' ? 'default' : 'secondary'}>
+                                    {detalles.seguimientoEstado.nombre}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Tipo de Seguimiento</Label>
+                                <p className="text-sm">{detalles.seguimientoTipo.nombre}</p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Responsable</Label>
+                                <p className="text-sm">{detalles.usuarioNombre}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Animal</Label>
+                            <p className="text-sm">{detalles.animalNombre}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Interacción</Label>
+                                <p className="text-sm">
+                                    {new Date(detalles.fechaInteraccion).toLocaleDateString('es-ES', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Creación</Label>
+                                <p className="text-sm">
+                                    {new Date(detalles.fechaCreacion).toLocaleDateString('es-ES', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
+                            </div>
+                        </div>
+
+                        {detalles.fechaActualizacion && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Última Actualización</Label>
+                                <p className="text-sm">
+                                    {new Date(detalles.fechaActualizacion).toLocaleDateString('es-ES', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
+                            </div>
+                        )}
+
+                        {detalles.fechaCierre && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Cierre</Label>
+                                <p className="text-sm">
+                                    {new Date(detalles.fechaCierre).toLocaleDateString('es-ES', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
+                            </div>
+                        )}
+
+                        <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Descripción</Label>
+                            <p className="text-sm bg-muted p-3 rounded-md">{detalles.descripcion || 'Sin descripción'}</p>
+                        </div>
+
+                        {detalles.observacion && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Observación de Cierre</Label>
+                                <p className="text-sm bg-muted p-3 rounded-md">{detalles.observacion}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
+                    <Button variant="outline" onClick={handleClose}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
