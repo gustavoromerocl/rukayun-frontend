@@ -115,7 +115,8 @@ class ApiClient {
     const configWithAuth = await this.authInterceptor({
       ...options,
       headers: {
-        ...API_CONFIG.headers,
+        // No aplicar Content-Type por defecto si estamos enviando FormData
+        ...(options.body instanceof FormData ? {} : API_CONFIG.headers),
         ...options.headers,
       },
     });
@@ -214,14 +215,14 @@ class ApiClient {
   async post<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
     });
   }
 
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
     });
   }
 

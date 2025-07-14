@@ -197,46 +197,28 @@ export function useAnimales() {
   }, [animalesService]);
 
   // Subir imagen de animal
-  const uploadAnimalImage = useCallback(async (animalId: number, file: File) => {
-    setLoading(true);
-    setError(null);
+  const uploadAnimalImage = async (animalId: number, imageFile: File): Promise<any> => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', imageFile);
       
-      // Usar el ApiClient para aprovechar el sistema de caché de tokens
       const uploadResponse = await apiClient.post(`/animales/${animalId}/imagenes`, formData);
-      
       return uploadResponse;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al subir la imagen');
-      console.error('Error uploading animal image:', err);
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error al subir imagen:', error);
+      throw error;
     }
-  }, [apiClient]);
+  };
 
   // Eliminar imagen de animal
-  const deleteAnimalImage = useCallback(async (animalId: number, imagenId: number) => {
-    console.log('🗑️ Eliminando imagen de animal:', animalId, 'imagen:', imagenId);
-    setLoading(true);
-    setError(null);
+  const deleteAnimalImage = async (animalId: number, imagenId: number): Promise<void> => {
     try {
-      console.log('📡 Llamando a animalesService.deleteAnimalImage...');
       await animalesService.deleteAnimalImage(animalId, imagenId);
-      console.log('✅ Imagen eliminada exitosamente');
-      // No actualizar el estado local aquí, dejar que fetchAnimales lo haga
-      // para evitar inconsistencias
-    } catch (err) {
-      console.error('❌ Error deleting animal image:', err);
-      setError(err instanceof Error ? err.message : 'Error al eliminar la imagen');
-      throw err;
-    } finally {
-      setLoading(false);
-      console.log('🏁 deleteAnimalImage completado');
+    } catch (error) {
+      console.error('Error al eliminar imagen:', error);
+      throw error;
     }
-  }, [animalesService]);
+  };
 
   // Limpiar error
   const clearError = useCallback(() => {
