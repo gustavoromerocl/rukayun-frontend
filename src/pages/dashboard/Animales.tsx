@@ -1110,13 +1110,14 @@ function AnimalFormDialog({
         setFormData(prev => ({ ...prev, [field]: parseInt(value) }))
     }
 
-    const handleImageChange = (value: string) => {
+    const handleImageChange = (value: string, file?: File) => {
+        console.log('🖼️ handleImageChange llamado:', { value: value?.substring(0, 50) + '...', file })
         setImagePreview(value)
         // Si se selecciona una nueva imagen, limpiar la imagen del servidor
         setCurrentServerImage(null)
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-        if (fileInput && fileInput.files && fileInput.files[0]) {
-            setImageFile(fileInput.files[0])
+        if (file) {
+            console.log('📁 Archivo recibido:', { name: file.name, size: file.size, type: file.type })
+            setImageFile(file)
         }
     }
 
@@ -1124,11 +1125,8 @@ function AnimalFormDialog({
         if (currentServerImage) {
             setIsDeletingImage(true)
             try {
-                console.log('🗑️ Eliminando imagen del servidor:', currentServerImage.imagenId)
-                
                 // Primero eliminar del servidor
                 await deleteAnimalImage(currentServerImage.animalId, currentServerImage.imagenId)
-                console.log('✅ Imagen eliminada exitosamente')
                 
                 // Solo después de confirmar que se eliminó, limpiar el estado local
                 setImagePreview('')
@@ -1228,7 +1226,6 @@ function AnimalFormDialog({
             
             if (animal) {
                 // Modo edición - actualizar animal existente
-                console.log('✏️ Modo edición - actualizando animal:', animal.animalId);
                 updatedAnimal = await updateAnimal(animal.animalId, {
                     nombre: formData.nombre,
                     peso: formData.peso,
@@ -1243,7 +1240,6 @@ function AnimalFormDialog({
                 });
             } else {
                 // Modo creación - crear nuevo animal
-                console.log('🆕 Modo creación - creando nuevo animal');
                 updatedAnimal = await createAnimal({
                     nombre: formData.nombre,
                     peso: formData.peso,
@@ -1258,15 +1254,22 @@ function AnimalFormDialog({
                 });
             }
             
-            // Si hay imagen nueva, intentar subirla (pero no fallar si hay error)
-            if (imageFile && updatedAnimal.animalId) {
-                try {
-                    await uploadAnimalImage(updatedAnimal.animalId, imageFile)
-                } catch (imageError) {
-                    console.warn('Error al subir imagen, pero el animal se guardó correctamente:', imageError)
-                    // No lanzar el error, solo mostrar un warning
-                    toast.warning(`Animal ${animal ? 'actualizado' : 'creado'} exitosamente, pero hubo un problema al subir la imagen.`)
-                }
+            // Eliminar imagen del servidor si existe
+            if (currentServerImage) {
+              try {
+                await deleteAnimalImage(updatedAnimal.animalId, currentServerImage.imagenId);
+              } catch (error) {
+                console.error('Error al eliminar imagen del servidor:', error);
+              }
+            }
+            // Subir nueva imagen si se proporcionó
+            if (imageFile) {
+              try {
+                await uploadAnimalImage(updatedAnimal.animalId, imageFile);
+              } catch (error) {
+                console.error('Error al subir imagen:', error);
+                toast.error('Error al subir la imagen');
+              }
             }
             
             // Cerrar formulario y limpiar

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 interface ImageUploadProps {
   value?: string
-  onChange?: (value: string) => void
+  onChange?: (value: string, file?: File) => void
   onRemove?: () => void
   isServerImage?: boolean
   loading?: boolean
@@ -42,10 +42,10 @@ export function ImageUpload({
 
     // Convert to base64 for preview
     const reader = new FileReader()
-    reader.onload = (e) => {
-      const result = e.target?.result as string
-      onChange?.(result)
-    }
+    reader.onload = () => {
+      const result = reader.result as string;
+      onChange?.(result, file);
+    };
     reader.readAsDataURL(file)
   }
 
