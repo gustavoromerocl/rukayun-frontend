@@ -181,7 +181,8 @@ export default function SeguimientoPage() {
     fetchSeguimientos, 
     fetchSeguimientosByUsuario,
     updateSeguimiento,
-    createSeguimiento
+    createSeguimiento,
+    cerrarSeguimiento
   } = useSeguimientos()
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
@@ -310,19 +311,17 @@ export default function SeguimientoPage() {
   const seguimientosActivos = tableData.filter(s => s.estado === 'Activo').length
   const seguimientosCerrados = tableData.filter(s => s.estado === 'Cerrado').length
 
-  const handleConfirmFinish = async () => {
+  const handleConfirmFinish = async (observacion: string) => {
     if (selectedSeguimiento) {
       try {
-        await updateSeguimiento(selectedSeguimiento.seguimientoId, {
-          estado: 'Cerrado'
-        })
+        await cerrarSeguimiento(selectedSeguimiento.seguimientoId, observacion)
         
         setIsConfirmOpen(false)
         setSelectedSeguimiento(null)
         
         toast.success('Seguimiento finalizado exitosamente')
         
-        // Refrescar la lista - CORREGIR ESTA LÍNEA
+        // Refrescar la lista
         if (isColaborator) {
           fetchSeguimientos()
         } else if (usuario?.usuarioId) {
@@ -805,13 +804,33 @@ function FinalizarDialog({
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
     seguimiento: SeguimientoTable | null
-    onConfirm: () => void
+    onConfirm: (observacion: string) => void
     }) {
+    
+    const [observacion, setObservacion] = React.useState("")
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    const handleConfirm = async () => {
+        setIsSubmitting(true)
+        try {
+            await onConfirm(observacion)
+            setObservacion("")
+        } catch (error) {
+            console.error('Error en confirmación:', error)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleClose = () => {
+        setObservacion("")
+        setIsOpen(false)
+    }
     
     if (!seguimiento) return null
 
     return (
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+        <AlertDialog open={isOpen} onOpenChange={handleClose}>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>¿Finalizar seguimiento?</AlertDialogTitle>
@@ -820,9 +839,25 @@ function FinalizarDialog({
                 No podrás registrar nuevas interacciones. ¿Estás seguro?
             </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="py-4">
+                <Label htmlFor="observacion">Observación (opcional)</Label>
+                <Textarea
+                    id="observacion"
+                    placeholder="Añade una observación sobre el cierre del seguimiento..."
+                    value={observacion}
+                    onChange={(e) => setObservacion(e.target.value)}
+                    rows={3}
+                    className="mt-2"
+                />
+            </div>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={onConfirm}>Confirmar y Finalizar</AlertDialogAction>
+                <AlertDialogCancel onClick={handleClose}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={handleConfirm}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? 'Finalizando...' : 'Confirmar y Finalizar'}
+                </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>

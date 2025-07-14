@@ -128,6 +128,21 @@ export function useSeguimientos() {
     }
   }, [seguimientosService]);
 
+  // Cerrar un seguimiento
+  const cerrarSeguimiento = useCallback(async (id: number, observacion: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const seguimientoCerrado = await seguimientosService.cerrarSeguimiento(id, { observacion });
+      return seguimientoCerrado;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar el seguimiento');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [seguimientosService]);
+
   // Obtener seguimientos por adopción
   const fetchSeguimientosByAdopcion = useCallback(async (adopcionId: number, filters: SeguimientosFilters = {}) => {
     setLoading(true);
@@ -212,6 +227,7 @@ export function useSeguimientos() {
     createSeguimiento,
     updateSeguimiento,
     deleteSeguimiento,
+    cerrarSeguimiento,
     fetchSeguimientosByAdopcion,
     fetchSeguimientosByUsuario,
     clearError,

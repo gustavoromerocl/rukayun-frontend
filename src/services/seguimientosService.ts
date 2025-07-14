@@ -60,6 +60,10 @@ export interface UpdateSeguimientoRequest {
   proximaSeguimiento?: string;
 }
 
+export interface CerrarSeguimientoRequest {
+  observacion: string;
+}
+
 // Servicio de seguimientos
 export class SeguimientosService {
   private apiClient: ApiClient;
@@ -103,6 +107,11 @@ export class SeguimientosService {
   // Eliminar un seguimiento
   async deleteSeguimiento(id: number): Promise<void> {
     return this.apiClient.delete<void>(`/seguimientos/${id}`);
+  }
+
+  // Cerrar un seguimiento
+  async cerrarSeguimiento(id: number, data: CerrarSeguimientoRequest): Promise<Seguimiento> {
+    return this.apiClient.post<Seguimiento>(`/seguimientos/${id}/cerrar`, data);
   }
 
   // Obtener seguimientos por adopción
