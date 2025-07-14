@@ -6,8 +6,14 @@ export interface Seguimiento {
   adopcionId: number;
   usuarioId: number;
   fechaSeguimiento: string;
+  fechaInteraccion?: string;
+  fechaCreacion?: string;
+  descripcion?: string;
   estado: string;
   observaciones: string;
+  observacion?: string;
+  fechaActualizacion?: string;
+  fechaCierre?: string;
   proximaSeguimiento?: string;
   // Campos adicionales que pueden venir en la respuesta
   adopcion?: {
@@ -27,6 +33,16 @@ export interface Seguimiento {
     nombres: string;
     apellidos: string;
   };
+  seguimientoTipo?: {
+    seguimientoTipoId: number;
+    nombre: string;
+  };
+  seguimientoEstado?: {
+    seguimientoEstadoId: number;
+    nombre: string;
+  };
+  animalNombre?: string;
+  usuarioNombre?: string;
 }
 
 export interface SeguimientosFilters {
@@ -54,6 +70,9 @@ export interface CreateSeguimientoRequest {
 }
 
 export interface UpdateSeguimientoRequest {
+  seguimientoTipoId?: number;
+  fechaInteraccion?: string;
+  descripcion?: string;
   fechaSeguimiento?: string;
   estado?: string;
   observaciones?: string;
