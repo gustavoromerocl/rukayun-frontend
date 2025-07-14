@@ -841,7 +841,7 @@ function SeguimientoFormDialog({
     
     const [formData, setFormData] = React.useState({
         adopcionId: 0,
-        seguimientoTipoId: 10, // Valor por defecto según el curl
+        seguimientoTipoId: 0, // Se actualizará cuando se carguen los tipos
         fechaInteraccion: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:MM
         descripcion: ""
     })
@@ -850,14 +850,22 @@ function SeguimientoFormDialog({
 
     // Hook para obtener adopciones
     const { adopciones, fetchAdopciones } = useAdopciones()
-    const { createSeguimiento } = useSeguimientos()
+    const { createSeguimiento, seguimientoTipos, fetchSeguimientoTipos } = useSeguimientos()
 
-    // Cargar adopciones al abrir el diálogo
+    // Cargar adopciones y tipos de seguimiento al abrir el diálogo
     React.useEffect(() => {
         if (isOpen) {
             fetchAdopciones()
+            fetchSeguimientoTipos()
         }
-    }, [isOpen, fetchAdopciones])
+    }, [isOpen, fetchAdopciones, fetchSeguimientoTipos])
+
+    // Actualizar el valor por defecto del tipo cuando se carguen los tipos
+    React.useEffect(() => {
+        if (seguimientoTipos.length > 0 && formData.seguimientoTipoId === 0) {
+            setFormData(prev => ({ ...prev, seguimientoTipoId: seguimientoTipos[0].seguimientoTipoId }))
+        }
+    }, [seguimientoTipos, formData.seguimientoTipoId])
 
     const handleValueChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
@@ -879,7 +887,7 @@ function SeguimientoFormDialog({
     const resetForm = () => {
         setFormData({
             adopcionId: 0,
-            seguimientoTipoId: 10,
+            seguimientoTipoId: 0,
             fechaInteraccion: new Date().toISOString().slice(0, 16),
             descripcion: ""
         })
@@ -982,10 +990,11 @@ function SeguimientoFormDialog({
                                 <SelectValue placeholder="Selecciona un tipo" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="10">Llamada Telefónica</SelectItem>
-                                <SelectItem value="11">Visita Domiciliaria</SelectItem>
-                                <SelectItem value="12">Correo Electrónico</SelectItem>
-                                <SelectItem value="13">Mensaje de Texto</SelectItem>
+                                {seguimientoTipos.map((tipo) => (
+                                    <SelectItem key={tipo.seguimientoTipoId} value={tipo.seguimientoTipoId.toString()}>
+                                        {tipo.nombre}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         {formErrors.seguimientoTipoId && (
