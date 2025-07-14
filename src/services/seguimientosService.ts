@@ -48,10 +48,9 @@ export interface SeguimientosResponse {
 
 export interface CreateSeguimientoRequest {
   adopcionId: number;
-  fechaSeguimiento: string;
-  estado: string;
-  observaciones: string;
-  proximaSeguimiento?: string;
+  seguimientoTipoId: number;
+  fechaInteraccion: string;
+  descripcion: string;
 }
 
 export interface UpdateSeguimientoRequest {

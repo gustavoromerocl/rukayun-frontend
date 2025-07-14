@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, FileText, CheckCircle2, History, PlusCircle } from "lucide-react"
+import { MoreHorizontal, Search, FileText, CheckCircle2, History, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -53,9 +53,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSeguimientos } from "@/hooks/useSeguimientos"
+import { useAdopciones } from "@/hooks/useAdopciones"
 import { useAuth } from "@/hooks/useAuth"
 import { useAppStore } from "@/lib/store"
 import type { Seguimiento as SeguimientoBackend } from "@/services/seguimientosService"
+import type { Adopcion } from "@/services/adopcionesService"
 import { toast } from "sonner"
 
 // Tipo para la tabla que combina datos del backend con datos calculados
@@ -138,7 +140,7 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
             {isColaborator && (
               <>
                 <DropdownMenuItem onClick={() => meta.handleRegisterInteraction(row.original)}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Registrar Interacción
+                    <Plus className="mr-2 h-4 w-4" /> Registrar Interacción
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -167,7 +169,9 @@ export default function SeguimientoPage() {
   const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+  const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<SeguimientoTable | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0)
 
   // Usar el hook de seguimientos y el store
   const { 
@@ -176,7 +180,8 @@ export default function SeguimientoPage() {
     error, 
     fetchSeguimientos, 
     fetchSeguimientosByUsuario,
-    updateSeguimiento
+    updateSeguimiento,
+    createSeguimiento
   } = useSeguimientos()
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
@@ -269,6 +274,22 @@ export default function SeguimientoPage() {
   React.useEffect(() => {
     console.log('tableData (useEffect):', tableData);
   }, [tableData]);
+
+  // Efecto para refrescar la tabla cuando cambie el refreshTrigger
+  React.useEffect(() => {
+    if (refreshTrigger > 0) {
+      if (isColaborator) {
+        fetchSeguimientos()
+      } else if (usuario?.usuarioId) {
+        fetchSeguimientosByUsuario(usuario.usuarioId)
+      }
+    }
+  }, [refreshTrigger, isColaborator, usuario?.usuarioId, fetchSeguimientos, fetchSeguimientosByUsuario])
+
+  const handleAddNew = () => {
+    setSelectedSeguimiento(null)
+    setIsFormOpen(true)
+  }
 
   const handleRegisterInteraction = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
@@ -436,16 +457,24 @@ export default function SeguimientoPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {isColaborator 
-            ? "Gestiona y registra las interacciones con los adoptantes."
-            : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
-          }
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isColaborator 
+              ? "Gestiona y registra las interacciones con los adoptantes."
+              : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
+            }
+          </p>
+        </div>
+        {isColaborator && (
+          <Button onClick={handleAddNew} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Añadir Seguimiento
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -651,6 +680,11 @@ export default function SeguimientoPage() {
         seguimiento={selectedSeguimiento}
         onConfirm={handleConfirmFinish}
       />
+      <SeguimientoFormDialog
+        isOpen={isFormOpen}
+        setIsOpen={setIsFormOpen}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+      />
     </div>
   )
 }
@@ -792,5 +826,210 @@ function FinalizarDialog({
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>
+    )
+}
+
+function SeguimientoFormDialog({
+    isOpen,
+    setIsOpen,
+    onRefresh,
+    }: {
+    isOpen: boolean
+    setIsOpen: (isOpen: boolean) => void
+    onRefresh: () => void
+    }) {
+    
+    const [formData, setFormData] = React.useState({
+        adopcionId: 0,
+        seguimientoTipoId: 10, // Valor por defecto según el curl
+        fechaInteraccion: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:MM
+        descripcion: ""
+    })
+    const [formErrors, setFormErrors] = React.useState<{[key: string]: string}>({})
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    // Hook para obtener adopciones
+    const { adopciones, fetchAdopciones } = useAdopciones()
+    const { createSeguimiento } = useSeguimientos()
+
+    // Cargar adopciones al abrir el diálogo
+    React.useEffect(() => {
+        if (isOpen) {
+            fetchAdopciones()
+        }
+    }, [isOpen, fetchAdopciones])
+
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+        // Limpiar error del campo
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: "" }))
+        }
+    }
+
+    const handleSelectChange = (field: string) => (value: string) => {
+        setFormData(prev => ({ ...prev, [field]: parseInt(value) }))
+        // Limpiar error del campo
+        if (formErrors[field]) {
+            setFormErrors(prev => ({ ...prev, [field]: "" }))
+        }
+    }
+
+    const resetForm = () => {
+        setFormData({
+            adopcionId: 0,
+            seguimientoTipoId: 10,
+            fechaInteraccion: new Date().toISOString().slice(0, 16),
+            descripcion: ""
+        })
+        setFormErrors({})
+    }
+
+    const validateForm = () => {
+        const errors: {[key: string]: string} = {}
+        
+        if (!formData.adopcionId) {
+            errors.adopcionId = 'Debes seleccionar una adopción'
+        }
+        
+        if (!formData.seguimientoTipoId) {
+            errors.seguimientoTipoId = 'Debes seleccionar un tipo de seguimiento'
+        }
+        
+        if (!formData.fechaInteraccion) {
+            errors.fechaInteraccion = 'La fecha de interacción es obligatoria'
+        }
+        
+        setFormErrors(errors)
+        return Object.keys(errors).length === 0
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        
+        if (!validateForm()) {
+            toast.error('Por favor, completa todos los campos obligatorios')
+            return
+        }
+        
+        setIsSubmitting(true)
+        try {
+            await createSeguimiento({
+                adopcionId: formData.adopcionId,
+                seguimientoTipoId: formData.seguimientoTipoId,
+                fechaInteraccion: new Date(formData.fechaInteraccion).toISOString(),
+                descripcion: formData.descripcion
+            })
+            
+            toast.success('Seguimiento creado exitosamente')
+            setIsOpen(false)
+            resetForm()
+            onRefresh()
+            
+        } catch (error: any) {
+            console.error('Error al crear seguimiento:', error)
+            toast.error(error?.message || 'Error al crear el seguimiento')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleCloseModal = () => {
+        setIsOpen(false)
+        resetForm()
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleCloseModal}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Crear Nuevo Seguimiento</DialogTitle>
+                    <DialogDescription>
+                        Registra un nuevo seguimiento para una adopción existente.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="adopcionId">Adopción</Label>
+                        <Select 
+                            value={formData.adopcionId.toString()} 
+                            onValueChange={handleSelectChange('adopcionId')}
+                        >
+                            <SelectTrigger id="adopcionId" className={formErrors.adopcionId ? 'border-red-500' : ''}>
+                                <SelectValue placeholder="Selecciona una adopción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {adopciones.map((adopcion) => (
+                                    <SelectItem key={adopcion.adopcionId} value={adopcion.adopcionId.toString()}>
+                                        {adopcion.animal.nombre} - {adopcion.usuario?.nombres} {adopcion.usuario?.apellidos}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formErrors.adopcionId && (
+                            <p className="text-sm text-red-500">{formErrors.adopcionId}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento</Label>
+                        <Select 
+                            value={formData.seguimientoTipoId.toString()} 
+                            onValueChange={handleSelectChange('seguimientoTipoId')}
+                        >
+                            <SelectTrigger id="seguimientoTipoId" className={formErrors.seguimientoTipoId ? 'border-red-500' : ''}>
+                                <SelectValue placeholder="Selecciona un tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">Llamada Telefónica</SelectItem>
+                                <SelectItem value="11">Visita Domiciliaria</SelectItem>
+                                <SelectItem value="12">Correo Electrónico</SelectItem>
+                                <SelectItem value="13">Mensaje de Texto</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {formErrors.seguimientoTipoId && (
+                            <p className="text-sm text-red-500">{formErrors.seguimientoTipoId}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="fechaInteraccion">Fecha de Interacción</Label>
+                        <Input
+                            id="fechaInteraccion"
+                            name="fechaInteraccion"
+                            type="datetime-local"
+                            value={formData.fechaInteraccion}
+                            onChange={handleValueChange}
+                            className={formErrors.fechaInteraccion ? 'border-red-500' : ''}
+                        />
+                        {formErrors.fechaInteraccion && (
+                            <p className="text-sm text-red-500">{formErrors.fechaInteraccion}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Textarea
+                            id="descripcion"
+                            name="descripcion"
+                            placeholder="Describe la interacción realizada..."
+                            value={formData.descripcion}
+                            onChange={handleValueChange}
+                            rows={4}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={handleCloseModal}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Creando...' : 'Crear Seguimiento'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 } 
