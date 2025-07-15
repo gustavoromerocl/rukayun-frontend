@@ -823,6 +823,10 @@ function EditarSeguimientoDialog({
             errors.fechaInteraccion = 'La fecha de interacción es obligatoria'
         }
         
+        if (!formData.descripcion || formData.descripcion.trim() === '') {
+            errors.descripcion = 'La descripción es obligatoria'
+        }
+        
         setFormErrors(errors)
         return Object.keys(errors).length === 0
     }
@@ -852,7 +856,13 @@ function EditarSeguimientoDialog({
             
         } catch (error: any) {
             console.error('Error al actualizar seguimiento:', error)
-            toast.error(error?.message || 'Error al actualizar el seguimiento')
+            
+            // Parsear el error del backend para mostrar el detail en toaster
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                toast.error(error.response.data.detail)
+            } else {
+                toast.error('Ocurrió un error al actualizar el seguimiento')
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -876,7 +886,7 @@ function EditarSeguimientoDialog({
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento</Label>
+                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento *</Label>
                         <Select 
                             value={formData.seguimientoTipoId.toString()} 
                             onValueChange={handleSelectChange('seguimientoTipoId')}
@@ -898,7 +908,7 @@ function EditarSeguimientoDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="fechaInteraccion">Fecha de Interacción</Label>
+                        <Label htmlFor="fechaInteraccion">Fecha de Interacción *</Label>
                         <Input
                             id="fechaInteraccion"
                             name="fechaInteraccion"
@@ -913,7 +923,7 @@ function EditarSeguimientoDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Label htmlFor="descripcion">Descripción *</Label>
                         <Textarea
                             id="descripcion"
                             name="descripcion"
@@ -921,7 +931,11 @@ function EditarSeguimientoDialog({
                             value={formData.descripcion}
                             onChange={handleValueChange}
                             rows={4}
+                            className={formErrors.descripcion ? 'border-red-500' : ''}
                         />
+                        {formErrors.descripcion && (
+                            <p className="text-sm text-red-500">{formErrors.descripcion}</p>
+                        )}
                     </div>
 
                     <DialogFooter>
@@ -1363,6 +1377,10 @@ function SeguimientoFormDialog({
             errors.fechaInteraccion = 'La fecha de interacción es obligatoria'
         }
         
+        if (!formData.descripcion || formData.descripcion.trim() === '') {
+            errors.descripcion = 'La descripción es obligatoria'
+        }
+        
         setFormErrors(errors)
         return Object.keys(errors).length === 0
     }
@@ -1391,7 +1409,13 @@ function SeguimientoFormDialog({
             
         } catch (error: any) {
             console.error('Error al crear seguimiento:', error)
-            toast.error(error?.message || 'Error al crear el seguimiento')
+            
+            // Parsear el error del backend para mostrar el detail en toaster
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                toast.error(error.response.data.detail)
+            } else {
+                toast.error('Ocurrió un error al crear el seguimiento')
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -1413,7 +1437,7 @@ function SeguimientoFormDialog({
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="adopcionId">Adopción</Label>
+                        <Label htmlFor="adopcionId">Adopción *</Label>
                         <Select 
                             value={formData.adopcionId.toString()} 
                             onValueChange={handleSelectChange('adopcionId')}
@@ -1435,7 +1459,7 @@ function SeguimientoFormDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento</Label>
+                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento *</Label>
                         <Select 
                             value={formData.seguimientoTipoId.toString()} 
                             onValueChange={handleSelectChange('seguimientoTipoId')}
@@ -1457,7 +1481,7 @@ function SeguimientoFormDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="fechaInteraccion">Fecha de Interacción</Label>
+                        <Label htmlFor="fechaInteraccion">Fecha de Interacción *</Label>
                         <Input
                             id="fechaInteraccion"
                             name="fechaInteraccion"
@@ -1472,7 +1496,7 @@ function SeguimientoFormDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Label htmlFor="descripcion">Descripción *</Label>
                         <Textarea
                             id="descripcion"
                             name="descripcion"
@@ -1480,7 +1504,11 @@ function SeguimientoFormDialog({
                             value={formData.descripcion}
                             onChange={handleValueChange}
                             rows={4}
+                            className={formErrors.descripcion ? 'border-red-500' : ''}
                         />
+                        {formErrors.descripcion && (
+                            <p className="text-sm text-red-500">{formErrors.descripcion}</p>
+                        )}
                     </div>
 
                     <DialogFooter>
