@@ -80,6 +80,13 @@ const safeDateParse = (dateString: string | undefined): string => {
 export type SeguimientoTable = SeguimientoBackend & {
   animalNombre?: string;
   adoptanteNombre?: string;
+  usuarioNombre?: string;
+  descripcion?: string;
+  fechaInteraccion?: string;
+  seguimientoTipo?: {
+    seguimientoTipoId: number;
+    nombre: string;
+  };
 }
 
 export const columns: ColumnDef<SeguimientoTable>[] = [
@@ -106,6 +113,13 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
     enableHiding: false,
   },
   {
+    accessorKey: "seguimientoId",
+    header: "ID",
+    cell: ({ row }) => (
+      <div className="text-sm text-muted-foreground">#{row.getValue("seguimientoId")}</div>
+    ),
+  },
+  {
     accessorKey: "adoptanteNombre",
     header: "Adoptante",
     enableColumnFilter: true,
@@ -116,15 +130,55 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
   {
     accessorKey: "animalNombre",
     header: "Animal",
+    enableColumnFilter: true,
   },
   {
-    accessorKey: "fechaSeguimiento",
-    header: "Fecha de Seguimiento",
+    accessorKey: "seguimientoTipo",
+    header: "Tipo",
+    enableColumnFilter: true,
     cell: ({ row }) => {
-      const fecha = new Date(row.getValue("fechaSeguimiento"))
-      return <div className="text-sm">{fecha.toLocaleDateString('es-ES')}</div>
+      const tipo = row.getValue("seguimientoTipo") as any
+      return <div className="text-sm">{tipo?.nombre || 'N/A'}</div>
+    }
+  },
+  {
+    accessorKey: "fechaInteraccion",
+    header: "Fecha de Interacción",
+    enableSorting: true,
+    cell: ({ row }) => {
+      const fecha = row.getValue("fechaInteraccion") as string
+      if (!fecha) return <div className="text-sm text-muted-foreground">N/A</div>
+      
+      try {
+        const date = new Date(fecha)
+        if (isNaN(date.getTime())) return <div className="text-sm text-muted-foreground">Fecha inválida</div>
+        
+        return (
+          <div className="text-sm">
+            <div>{date.toLocaleDateString('es-ES')}</div>
+            <div className="text-xs text-muted-foreground">{date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+        )
+      } catch (error) {
+        return <div className="text-sm text-muted-foreground">Fecha inválida</div>
+      }
     },
   },
+  {
+    accessorKey: "descripcion",
+    header: "Descripción",
+    cell: ({ row }) => {
+      const descripcion = row.getValue("descripcion") as string
+      return (
+        <div className="max-w-[200px]">
+          <div className="text-sm truncate" title={descripcion}>
+            {descripcion || 'Sin descripción'}
+          </div>
+        </div>
+      )
+    }
+  },
+
   {
     accessorKey: "estado",
     header: "Estado",
@@ -278,7 +332,14 @@ export default function SeguimientoPage() {
             : 'N/A'
         ),
         estado: anyS.seguimientoEstado?.nombre || s.estado || 'N/A',
-        fechaSeguimiento: anyS.fechaInteraccion || s.fechaSeguimiento || 'N/A',
+        fechaInteraccion: anyS.fechaInteraccion || s.fechaSeguimiento || 'N/A',
+        seguimientoTipo: anyS.seguimientoTipo || { nombre: 'N/A' },
+        usuarioNombre: anyS.usuarioNombre || (
+          s.usuario?.nombres 
+            ? `${s.usuario.nombres} ${s.usuario.apellidos}`
+            : 'N/A'
+        ),
+        descripcion: anyS.descripcion || s.observaciones || 'Sin descripción',
       };
     });
     console.log('tableData: mapeado', data);
