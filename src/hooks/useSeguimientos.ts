@@ -8,6 +8,12 @@ import type {
   UpdateSeguimientoRequest 
 } from '@/services/seguimientosService';
 
+// Interfaz para tipos de seguimiento
+export interface SeguimientoTipo {
+  seguimientoTipoId: number;
+  nombre: string;
+}
+
 export function useSeguimientos() {
   const apiClient = useApi();
   const [seguimientos, setSeguimientos] = useState<Seguimiento[]>([]);
@@ -21,6 +27,12 @@ export function useSeguimientos() {
     hasPreviousPage: false,
     hasNextPage: false,
   });
+
+  // Estado para tipos de seguimiento con cache
+  const [seguimientoTipos, setSeguimientoTipos] = useState<SeguimientoTipo[]>([]);
+  const [tiposLoading, setTiposLoading] = useState(false);
+  const [tiposError, setTiposError] = useState<string | null>(null);
+  const [tiposLoaded, setTiposLoaded] = useState(false);
 
   // Memoizar el servicio para evitar recreaciones
   const seguimientosService = useMemo(() => new SeguimientosService(apiClient), [apiClient]);
@@ -116,6 +128,21 @@ export function useSeguimientos() {
     }
   }, [seguimientosService]);
 
+  // Cerrar un seguimiento
+  const cerrarSeguimiento = useCallback(async (id: number, observacion: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const seguimientoCerrado = await seguimientosService.cerrarSeguimiento(id, { observacion });
+      return seguimientoCerrado;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar el seguimiento');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [seguimientosService]);
+
   // Obtener seguimientos por adopción
   const fetchSeguimientosByAdopcion = useCallback(async (adopcionId: number, filters: SeguimientosFilters = {}) => {
     setLoading(true);
@@ -168,6 +195,28 @@ export function useSeguimientos() {
     setError(null);
   }, []);
 
+  // Obtener tipos de seguimiento (con cache)
+  const fetchSeguimientoTipos = useCallback(async () => {
+    // Si ya se cargaron los tipos, no hacer la llamada nuevamente
+    if (tiposLoaded && seguimientoTipos.length > 0) {
+      return seguimientoTipos;
+    }
+
+    setTiposLoading(true);
+    setTiposError(null);
+    try {
+      const tipos = await apiClient.get<SeguimientoTipo[]>('/seguimientos/tipos');
+      setSeguimientoTipos(tipos);
+      setTiposLoaded(true);
+      return tipos;
+    } catch (err) {
+      setTiposError(err instanceof Error ? err.message : 'Error al obtener tipos de seguimiento');
+      throw err;
+    } finally {
+      setTiposLoading(false);
+    }
+  }, [apiClient, tiposLoaded, seguimientoTipos.length]);
+
   return {
     seguimientos,
     loading,
@@ -178,8 +227,14 @@ export function useSeguimientos() {
     createSeguimiento,
     updateSeguimiento,
     deleteSeguimiento,
+    cerrarSeguimiento,
     fetchSeguimientosByAdopcion,
     fetchSeguimientosByUsuario,
     clearError,
+    // Nuevos métodos para tipos de seguimiento
+    seguimientoTipos,
+    tiposLoading,
+    tiposError,
+    fetchSeguimientoTipos,
   };
 } 

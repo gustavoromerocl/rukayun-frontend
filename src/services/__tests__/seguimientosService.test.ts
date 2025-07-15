@@ -118,10 +118,9 @@ describe('SeguimientosService', () => {
 
       const createData = {
         adopcionId: 2,
-        fechaSeguimiento: '2023-01-15',
-        estado: 'COMPLETADO',
-        observaciones: 'Nueva observación',
-        proximaSeguimiento: '2023-03-01',
+        seguimientoTipoId: 1,
+        fechaInteraccion: '2023-01-15T00:00:00Z',
+        descripcion: 'Nueva observación',
       };
 
       const result = await seguimientosService.createSeguimiento(createData);
@@ -136,9 +135,9 @@ describe('SeguimientosService', () => {
 
       const createData = {
         adopcionId: 2,
-        fechaSeguimiento: '2023-01-15',
-        estado: 'COMPLETADO',
-        observaciones: 'Nueva observación',
+        seguimientoTipoId: 1,
+        fechaInteraccion: '2023-01-15T00:00:00Z',
+        descripcion: 'Nueva observación',
       };
 
       await expect(seguimientosService.createSeguimiento(createData)).rejects.toThrow('Error al crear seguimiento');

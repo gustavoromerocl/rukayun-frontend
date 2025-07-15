@@ -6,8 +6,14 @@ export interface Seguimiento {
   adopcionId: number;
   usuarioId: number;
   fechaSeguimiento: string;
+  fechaInteraccion?: string;
+  fechaCreacion?: string;
+  descripcion?: string;
   estado: string;
   observaciones: string;
+  observacion?: string;
+  fechaActualizacion?: string;
+  fechaCierre?: string;
   proximaSeguimiento?: string;
   // Campos adicionales que pueden venir en la respuesta
   adopcion?: {
@@ -27,6 +33,16 @@ export interface Seguimiento {
     nombres: string;
     apellidos: string;
   };
+  seguimientoTipo?: {
+    seguimientoTipoId: number;
+    nombre: string;
+  };
+  seguimientoEstado?: {
+    seguimientoEstadoId: number;
+    nombre: string;
+  };
+  animalNombre?: string;
+  usuarioNombre?: string;
 }
 
 export interface SeguimientosFilters {
@@ -48,17 +64,23 @@ export interface SeguimientosResponse {
 
 export interface CreateSeguimientoRequest {
   adopcionId: number;
-  fechaSeguimiento: string;
-  estado: string;
-  observaciones: string;
-  proximaSeguimiento?: string;
+  seguimientoTipoId: number;
+  fechaInteraccion: string;
+  descripcion: string;
 }
 
 export interface UpdateSeguimientoRequest {
+  seguimientoTipoId?: number;
+  fechaInteraccion?: string;
+  descripcion?: string;
   fechaSeguimiento?: string;
   estado?: string;
   observaciones?: string;
   proximaSeguimiento?: string;
+}
+
+export interface CerrarSeguimientoRequest {
+  observacion: string;
 }
 
 // Servicio de seguimientos
@@ -104,6 +126,11 @@ export class SeguimientosService {
   // Eliminar un seguimiento
   async deleteSeguimiento(id: number): Promise<void> {
     return this.apiClient.delete<void>(`/seguimientos/${id}`);
+  }
+
+  // Cerrar un seguimiento
+  async cerrarSeguimiento(id: number, data: CerrarSeguimientoRequest): Promise<Seguimiento> {
+    return this.apiClient.post<Seguimiento>(`/seguimientos/${id}/cerrar`, data);
   }
 
   // Obtener seguimientos por adopción

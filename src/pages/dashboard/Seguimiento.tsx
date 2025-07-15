@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, Search, FileText, CheckCircle2, History, PlusCircle } from "lucide-react"
+import { MoreHorizontal, Search, FileText, CheckCircle2, History, Plus, Eye, Edit } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -53,10 +53,28 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSeguimientos } from "@/hooks/useSeguimientos"
+import { useAdopciones } from "@/hooks/useAdopciones"
 import { useAuth } from "@/hooks/useAuth"
 import { useAppStore } from "@/lib/store"
 import type { Seguimiento as SeguimientoBackend } from "@/services/seguimientosService"
 import { toast } from "sonner"
+
+// Función de utilidad para manejar fechas de forma segura
+const safeDateParse = (dateString: string | undefined): string => {
+    if (!dateString) return new Date().toISOString().slice(0, 16)
+    
+    try {
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) {
+            console.warn('Fecha inválida recibida:', dateString)
+            return new Date().toISOString().slice(0, 16)
+        }
+        return date.toISOString().slice(0, 16)
+    } catch (error) {
+        console.warn('Error al parsear fecha:', dateString, error)
+        return new Date().toISOString().slice(0, 16)
+    }
+}
 
 // Tipo para la tabla que combina datos del backend con datos calculados
 export type SeguimientoTable = SeguimientoBackend & {
@@ -132,13 +150,13 @@ export const columns: ColumnDef<SeguimientoTable>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => meta.handleViewHistory(row.original)}>
-                <History className="mr-2 h-4 w-4" /> Ver Historial
+            <DropdownMenuItem onClick={() => meta.handleViewDetails(row.original)}>
+                <Eye className="mr-2 h-4 w-4" /> Ver Detalles
             </DropdownMenuItem>
             {isColaborator && (
               <>
-                <DropdownMenuItem onClick={() => meta.handleRegisterInteraction(row.original)}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Registrar Interacción
+                <DropdownMenuItem onClick={() => meta.handleEditSeguimiento(row.original)}>
+                    <Edit className="mr-2 h-4 w-4" /> Editar
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -164,10 +182,12 @@ export default function SeguimientoPage() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
-  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false)
+  const [isEditOpen, setIsEditOpen] = React.useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+  const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [selectedSeguimiento, setSelectedSeguimiento] = React.useState<SeguimientoTable | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0)
 
   // Usar el hook de seguimientos y el store
   const { 
@@ -176,7 +196,7 @@ export default function SeguimientoPage() {
     error, 
     fetchSeguimientos, 
     fetchSeguimientosByUsuario,
-    updateSeguimiento
+    cerrarSeguimiento
   } = useSeguimientos()
   const { isColaborator } = useAppStore()
   const { usuario } = useAuth()
@@ -270,14 +290,30 @@ export default function SeguimientoPage() {
     console.log('tableData (useEffect):', tableData);
   }, [tableData]);
 
-  const handleRegisterInteraction = (seguimiento: SeguimientoTable) => {
-    setSelectedSeguimiento(seguimiento)
-    setIsRegisterOpen(true)
+  // Efecto para refrescar la tabla cuando cambie el refreshTrigger
+  React.useEffect(() => {
+    if (refreshTrigger > 0) {
+      if (isColaborator) {
+        fetchSeguimientos()
+      } else if (usuario?.usuarioId) {
+        fetchSeguimientosByUsuario(usuario.usuarioId)
+      }
+    }
+  }, [refreshTrigger, isColaborator, usuario?.usuarioId, fetchSeguimientos, fetchSeguimientosByUsuario])
+
+  const handleAddNew = () => {
+    setSelectedSeguimiento(null)
+    setIsFormOpen(true)
   }
 
-  const handleViewHistory = (seguimiento: SeguimientoTable) => {
+  const handleEditSeguimiento = (seguimiento: SeguimientoTable) => {
     setSelectedSeguimiento(seguimiento)
-    setIsHistoryOpen(true)
+    setIsEditOpen(true)
+  }
+
+  const handleViewDetails = (seguimiento: SeguimientoTable) => {
+    setSelectedSeguimiento(seguimiento)
+    setIsDetailsOpen(true)
   }
 
   const handleFinishFollowUp = (seguimiento: SeguimientoTable) => {
@@ -289,19 +325,17 @@ export default function SeguimientoPage() {
   const seguimientosActivos = tableData.filter(s => s.estado === 'Activo').length
   const seguimientosCerrados = tableData.filter(s => s.estado === 'Cerrado').length
 
-  const handleConfirmFinish = async () => {
+  const handleConfirmFinish = async (observacion: string) => {
     if (selectedSeguimiento) {
       try {
-        await updateSeguimiento(selectedSeguimiento.seguimientoId, {
-          estado: 'Cerrado'
-        })
+        await cerrarSeguimiento(selectedSeguimiento.seguimientoId, observacion)
         
         setIsConfirmOpen(false)
         setSelectedSeguimiento(null)
         
         toast.success('Seguimiento finalizado exitosamente')
         
-        // Refrescar la lista - CORREGIR ESTA LÍNEA
+        // Refrescar la lista
         if (isColaborator) {
           fetchSeguimientos()
         } else if (usuario?.usuarioId) {
@@ -333,8 +367,8 @@ export default function SeguimientoPage() {
       rowSelection,
     },
     meta: {
-      handleRegisterInteraction,
-      handleViewHistory,
+      handleEditSeguimiento,
+      handleViewDetails,
       handleFinishFollowUp,
       isColaborator,
     },
@@ -436,16 +470,24 @@ export default function SeguimientoPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {isColaborator 
-            ? "Gestiona y registra las interacciones con los adoptantes."
-            : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
-          }
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            {isColaborator ? "Seguimiento de Adopciones" : "Mis Seguimientos"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isColaborator 
+              ? "Gestiona y registra las interacciones con los adoptantes."
+              : "Revisa el estado de tus adopciones y el seguimiento de tus mascotas."
+            }
+          </p>
+        </div>
+        {isColaborator && (
+          <Button onClick={handleAddNew} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Añadir Seguimiento
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -635,14 +677,15 @@ export default function SeguimientoPage() {
         </CardContent>
       </Card>
 
-      <RegistrarInteraccionDialog 
-        isOpen={isRegisterOpen} 
-        setIsOpen={setIsRegisterOpen} 
-        seguimiento={selectedSeguimiento} 
+      <EditarSeguimientoDialog 
+        isOpen={isEditOpen} 
+        setIsOpen={setIsEditOpen} 
+        seguimiento={selectedSeguimiento}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
       />
-      <HistorialDialog
-        isOpen={isHistoryOpen}
-        setIsOpen={setIsHistoryOpen}
+      <DetallesDialog
+        isOpen={isDetailsOpen}
+        setIsOpen={setIsDetailsOpen}
         seguimiento={selectedSeguimiento}
       />
       <FinalizarDialog
@@ -651,11 +694,293 @@ export default function SeguimientoPage() {
         seguimiento={selectedSeguimiento}
         onConfirm={handleConfirmFinish}
       />
+      <SeguimientoFormDialog
+        isOpen={isFormOpen}
+        setIsOpen={setIsFormOpen}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+      />
     </div>
   )
 }
 
-function RegistrarInteraccionDialog({
+function EditarSeguimientoDialog({
+    isOpen,
+    setIsOpen,
+    seguimiento,
+    onRefresh,
+    }: {
+    isOpen: boolean
+    setIsOpen: (isOpen: boolean) => void
+    seguimiento: SeguimientoTable | null
+    onRefresh: () => void
+    }) {
+    
+    const [formData, setFormData] = React.useState<UpdateSeguimientoDetalle>({
+        seguimientoTipoId: 0,
+        fechaInteraccion: new Date().toISOString().slice(0, 16),
+        descripcion: ""
+    })
+    const [formErrors, setFormErrors] = React.useState<{[key: string]: string}>({})
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [_detalles, setDetalles] = React.useState<SeguimientoDetalle | null>(null)
+
+    // Usar el hook de seguimientos
+    const { fetchSeguimiento, updateSeguimiento, seguimientoTipos, fetchSeguimientoTipos } = useSeguimientos()
+
+    // Cargar detalles del seguimiento y tipos cuando se abre el diálogo
+    React.useEffect(() => {
+        if (isOpen && seguimiento) {
+            fetchDetalles()
+            fetchSeguimientoTipos()
+        }
+    }, [isOpen, seguimiento])
+
+    // Función para obtener los detalles del seguimiento
+    const fetchDetalles = async () => {
+        if (!seguimiento) return
+        
+        try {
+            const data = await fetchSeguimiento(seguimiento.seguimientoId)
+            // Convertir el tipo Seguimiento a SeguimientoDetalle
+            const detalles: SeguimientoDetalle = {
+                seguimientoId: data.seguimientoId,
+                fechaInteraccion: data.fechaSeguimiento,
+                fechaCreacion: data.fechaSeguimiento,
+                descripcion: data.observaciones || '',
+                adopcionId: data.adopcionId,
+                animalId: data.adopcion?.animal?.animalId || 0,
+                usuarioId: data.usuarioId,
+                usuarioNombre: data.usuario?.nombres ? `${data.usuario.nombres} ${data.usuario.apellidos}` : 'N/A',
+                animalNombre: data.adopcion?.animal?.nombre || 'N/A',
+                seguimientoTipo: {
+                    seguimientoTipoId: 0,
+                    nombre: 'N/A'
+                },
+                seguimientoEstado: {
+                    seguimientoEstadoId: 0,
+                    nombre: data.estado || 'N/A'
+                }
+            }
+            setDetalles(detalles)
+            
+            // Actualizar el formulario con los datos actuales
+            setFormData({
+                seguimientoTipoId: 0, // Se actualizará cuando se carguen los tipos
+                fechaInteraccion: safeDateParse(data.fechaInteraccion || data.fechaSeguimiento),
+                descripcion: data.descripcion || data.observaciones || ""
+            })
+        } catch (err) {
+            console.error('Error al obtener detalles del seguimiento:', err)
+            toast.error('Error al cargar los detalles del seguimiento')
+        }
+    }
+
+    // Actualizar el valor por defecto del tipo cuando se carguen los tipos
+    React.useEffect(() => {
+        if (seguimientoTipos.length > 0 && formData.seguimientoTipoId === 0) {
+            setFormData(prev => ({ ...prev, seguimientoTipoId: seguimientoTipos[0].seguimientoTipoId }))
+        }
+    }, [seguimientoTipos, formData.seguimientoTipoId])
+
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+        // Limpiar error del campo
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: "" }))
+        }
+    }
+
+    const handleSelectChange = (field: string) => (value: string) => {
+        setFormData(prev => ({ ...prev, [field]: parseInt(value) }))
+        // Limpiar error del campo
+        if (formErrors[field]) {
+            setFormErrors(prev => ({ ...prev, [field]: "" }))
+        }
+    }
+
+    const resetForm = () => {
+        setFormData({
+            seguimientoTipoId: 0,
+            fechaInteraccion: new Date().toISOString().slice(0, 16),
+            descripcion: ""
+        })
+        setFormErrors({})
+        setDetalles(null)
+    }
+
+    const validateForm = () => {
+        const errors: {[key: string]: string} = {}
+        
+        if (!formData.seguimientoTipoId) {
+            errors.seguimientoTipoId = 'Debes seleccionar un tipo de seguimiento'
+        }
+        
+        if (!formData.fechaInteraccion) {
+            errors.fechaInteraccion = 'La fecha de interacción es obligatoria'
+        }
+        
+        if (!formData.descripcion || formData.descripcion.trim() === '') {
+            errors.descripcion = 'La descripción es obligatoria'
+        }
+        
+        setFormErrors(errors)
+        return Object.keys(errors).length === 0
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        
+        if (!validateForm()) {
+            toast.error('Por favor, completa todos los campos obligatorios')
+            return
+        }
+        
+        if (!seguimiento) return
+        
+        setIsSubmitting(true)
+        try {
+            await updateSeguimiento(seguimiento.seguimientoId, {
+                seguimientoTipoId: formData.seguimientoTipoId,
+                fechaInteraccion: new Date(formData.fechaInteraccion).toISOString(),
+                descripcion: formData.descripcion
+            })
+            
+            toast.success('Seguimiento actualizado exitosamente')
+            setIsOpen(false)
+            resetForm()
+            onRefresh()
+            
+        } catch (error: any) {
+            console.error('Error al actualizar seguimiento:', error)
+            
+            // Parsear el error del backend para mostrar el detail en toaster
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                toast.error(error.response.data.detail)
+            } else {
+                toast.error('Ocurrió un error al actualizar el seguimiento')
+            }
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleCloseModal = () => {
+        setIsOpen(false)
+        resetForm()
+    }
+
+    if (!seguimiento) return null
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleCloseModal}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Editar Seguimiento</DialogTitle>
+                    <DialogDescription>
+                        Edita la información del seguimiento para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento *</Label>
+                        <Select 
+                            value={formData.seguimientoTipoId.toString()} 
+                            onValueChange={handleSelectChange('seguimientoTipoId')}
+                        >
+                            <SelectTrigger id="seguimientoTipoId" className={formErrors.seguimientoTipoId ? 'border-red-500' : ''}>
+                                <SelectValue placeholder="Selecciona un tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {seguimientoTipos.map((tipo) => (
+                                    <SelectItem key={tipo.seguimientoTipoId} value={tipo.seguimientoTipoId.toString()}>
+                                        {tipo.nombre}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formErrors.seguimientoTipoId && (
+                            <p className="text-sm text-red-500">{formErrors.seguimientoTipoId}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="fechaInteraccion">Fecha de Interacción *</Label>
+                        <Input
+                            id="fechaInteraccion"
+                            name="fechaInteraccion"
+                            type="datetime-local"
+                            value={formData.fechaInteraccion}
+                            onChange={handleValueChange}
+                            className={formErrors.fechaInteraccion ? 'border-red-500' : ''}
+                        />
+                        {formErrors.fechaInteraccion && (
+                            <p className="text-sm text-red-500">{formErrors.fechaInteraccion}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="descripcion">Descripción *</Label>
+                        <Textarea
+                            id="descripcion"
+                            name="descripcion"
+                            placeholder="Describe la interacción realizada..."
+                            value={formData.descripcion}
+                            onChange={handleValueChange}
+                            rows={4}
+                            className={formErrors.descripcion ? 'border-red-500' : ''}
+                        />
+                        {formErrors.descripcion && (
+                            <p className="text-sm text-red-500">{formErrors.descripcion}</p>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={handleCloseModal}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Actualizando...' : 'Actualizar Seguimiento'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// Tipo para los detalles del seguimiento desde el backend
+type SeguimientoDetalle = {
+    seguimientoId: number;
+    fechaInteraccion: string;
+    fechaCreacion: string;
+    descripcion: string;
+    observacion?: string;
+    fechaActualizacion?: string;
+    fechaCierre?: string;
+    adopcionId: number;
+    animalId: number;
+    usuarioId: number;
+    usuarioNombre: string;
+    animalNombre: string;
+    seguimientoTipo: {
+        seguimientoTipoId: number;
+        nombre: string;
+    };
+    seguimientoEstado: {
+        seguimientoEstadoId: number;
+        nombre: string;
+    };
+}
+
+// Tipo para la actualización de seguimiento
+type UpdateSeguimientoDetalle = {
+    seguimientoTipoId: number;
+    fechaInteraccion: string;
+    descripcion: string;
+}
+
+function DetallesDialog({
     isOpen,
     setIsOpen,
     seguimiento,
@@ -665,97 +990,235 @@ function RegistrarInteraccionDialog({
     seguimiento: SeguimientoTable | null
     }) {
     
-    if (!seguimiento) return null
+    const [detalles, setDetalles] = React.useState<SeguimientoDetalle | null>(null)
+    const [loading, setLoading] = React.useState(false)
+    const [error, setError] = React.useState<string | null>(null)
+    
+    // Usar el hook de seguimientos para acceder al método fetchSeguimiento
+    const { fetchSeguimiento } = useSeguimientos()
 
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Registrar Interacción</DialogTitle>
-                    <DialogDescription>
-                        Para el seguimiento de <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="tipo-interaccion">Tipo de Interacción</Label>
-                        <Select defaultValue="Llamada Telefónica">
-                            <SelectTrigger id="tipo-interaccion">
-                                <SelectValue placeholder="Selecciona un tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Llamada Telefónica">Llamada Telefónica</SelectItem>
-                                <SelectItem value="Visita Domiciliaria">Visita Domiciliaria</SelectItem>
-                                <SelectItem value="Correo Electrónico">Correo Electrónico</SelectItem>
-                                <SelectItem value="Mensaje de Texto">Mensaje de Texto</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="fecha-proxima">Próxima Fecha de Contacto</Label>
-                        <Input id="fecha-proxima" type="date" defaultValue={new Date().toISOString().substring(0, 10)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="notas">Notas</Label>
-                        <Textarea id="notas" placeholder="Añade tus observaciones aquí..." rows={4} />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={() => setIsOpen(false)}>Guardar Registro</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
+    // Función para obtener los detalles del seguimiento
+    const fetchDetalles = async (seguimientoId: number) => {
+        setLoading(true)
+        setError(null)
+        try {
+            const data = await fetchSeguimiento(seguimientoId)
+            // Convertir el tipo Seguimiento a SeguimientoDetalle
+            const detalles: SeguimientoDetalle = {
+                seguimientoId: data.seguimientoId,
+                fechaInteraccion: data.fechaInteraccion || data.fechaSeguimiento,
+                fechaCreacion: data.fechaCreacion || data.fechaSeguimiento,
+                descripcion: data.descripcion || data.observaciones || '',
+                observacion: data.observacion,
+                fechaActualizacion: data.fechaActualizacion,
+                fechaCierre: data.fechaCierre,
+                adopcionId: data.adopcionId,
+                animalId: data.adopcion?.animal?.animalId || 0,
+                usuarioId: data.usuarioId,
+                usuarioNombre: data.usuarioNombre || (data.usuario?.nombres ? `${data.usuario.nombres} ${data.usuario.apellidos}` : 'N/A'),
+                animalNombre: data.animalNombre || data.adopcion?.animal?.nombre || 'N/A',
+                seguimientoTipo: data.seguimientoTipo || {
+                    seguimientoTipoId: 0,
+                    nombre: 'N/A'
+                },
+                seguimientoEstado: data.seguimientoEstado || {
+                    seguimientoEstadoId: 0,
+                    nombre: data.estado || 'N/A'
+                }
+            }
+            setDetalles(detalles)
+        } catch (err) {
+            console.error('Error al obtener detalles del seguimiento:', err)
+            setError(err instanceof Error ? err.message : 'Error al cargar los detalles')
+        } finally {
+            setLoading(false)
+        }
+    }
 
-const historialFalso = [
-    { fecha: "2024-05-20", nota: "Llamada inicial. El adoptante informa que Max se está adaptando bien. Se programa próxima llamada." },
-    { fecha: "2024-04-15", nota: "Visita domiciliaria. El entorno es adecuado y seguro. Max parece feliz." },
-    { fecha: "2024-03-10", nota: "Entrega del animal. Se firman todos los documentos." },
-]
+    // Cargar detalles cuando se abre el diálogo
+    React.useEffect(() => {
+        if (isOpen && seguimiento) {
+            fetchDetalles(seguimiento.seguimientoId)
+        }
+    }, [isOpen, seguimiento])
 
-function HistorialDialog({
-    isOpen,
-    setIsOpen,
-    seguimiento,
-    }: {
-    isOpen: boolean
-    setIsOpen: (isOpen: boolean) => void
-    seguimiento: SeguimientoTable | null
-    }) {
+    const handleClose = () => {
+        setIsOpen(false)
+        setDetalles(null)
+        setError(null)
+    }
 
     if (!seguimiento) return null
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Historial de Seguimiento</DialogTitle>
+                    <DialogTitle>Detalles del Seguimiento</DialogTitle>
                     <DialogDescription>
-                        Mostrando el historial para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
+                        Información detallada del seguimiento para <span className="font-semibold">{seguimiento.animalNombre}</span> con <span className="font-semibold">{seguimiento.adoptanteNombre}</span>.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <div className="relative pl-6 space-y-6">
-                        {/* Línea de tiempo vertical */}
-                        <div className="absolute left-9 top-0 h-full w-0.5 bg-border" />
-
-                        {historialFalso.map((item, index) => (
-                            <div key={index} className="relative flex items-start">
-                                <div className="absolute left-0 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary -translate-x-1/2">
-                                    <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
-                                </div>
-                                <div className="ml-12">
-                                    <p className="font-semibold text-sm">{new Date(item.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                                    <p className="text-muted-foreground text-sm">{item.nota}</p>
-                                </div>
-                            </div>
-                        ))}
+                
+                {loading && (
+                    <div className="py-8 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-sm text-muted-foreground mt-2">Cargando detalles...</p>
                     </div>
-                </div>
+                )}
+
+                {error && (
+                    <div className="py-4">
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                            <p className="text-sm text-red-600">{error}</p>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => seguimiento && fetchDetalles(seguimiento.seguimientoId)}
+                                className="mt-2"
+                            >
+                                Reintentar
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {detalles && !loading && (
+                    <div className="py-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">ID del Seguimiento</Label>
+                                <p className="text-sm">{detalles.seguimientoId}</p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Estado</Label>
+                                <Badge variant={detalles.seguimientoEstado.nombre === 'Activo' ? 'default' : 'secondary'}>
+                                    {detalles.seguimientoEstado.nombre}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Tipo de Seguimiento</Label>
+                                <p className="text-sm">{detalles.seguimientoTipo.nombre}</p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Responsable</Label>
+                                <p className="text-sm">{detalles.usuarioNombre}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Animal</Label>
+                            <p className="text-sm">{detalles.animalNombre}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Interacción</Label>
+                                <p className="text-sm">
+                                    {(() => {
+                                        try {
+                                            const date = new Date(detalles.fechaInteraccion)
+                                            if (isNaN(date.getTime())) return 'Fecha inválida'
+                                            return date.toLocaleDateString('es-ES', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                        } catch (error) {
+                                            return 'Fecha inválida'
+                                        }
+                                    })()}
+                                </p>
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Creación</Label>
+                                <p className="text-sm">
+                                    {(() => {
+                                        try {
+                                            const date = new Date(detalles.fechaCreacion)
+                                            if (isNaN(date.getTime())) return 'Fecha inválida'
+                                            return date.toLocaleDateString('es-ES', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                        } catch (error) {
+                                            return 'Fecha inválida'
+                                        }
+                                    })()}
+                                </p>
+                            </div>
+                        </div>
+
+                        {detalles.fechaActualizacion && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Última Actualización</Label>
+                                <p className="text-sm">
+                                    {(() => {
+                                        try {
+                                            const date = new Date(detalles.fechaActualizacion)
+                                            if (isNaN(date.getTime())) return 'Fecha inválida'
+                                            return date.toLocaleDateString('es-ES', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                        } catch (error) {
+                                            return 'Fecha inválida'
+                                        }
+                                    })()}
+                                </p>
+                            </div>
+                        )}
+
+                        {detalles.fechaCierre && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Fecha de Cierre</Label>
+                                <p className="text-sm">
+                                    {(() => {
+                                        try {
+                                            const date = new Date(detalles.fechaCierre)
+                                            if (isNaN(date.getTime())) return 'Fecha inválida'
+                                            return date.toLocaleDateString('es-ES', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                        } catch (error) {
+                                            return 'Fecha inválida'
+                                        }
+                                    })()}
+                                </p>
+                            </div>
+                        )}
+
+                        <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Descripción</Label>
+                            <p className="text-sm bg-muted p-3 rounded-md">{detalles.descripcion || 'Sin descripción'}</p>
+                        </div>
+
+                        {detalles.observacion && (
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Observación de Cierre</Label>
+                                <p className="text-sm bg-muted p-3 rounded-md">{detalles.observacion}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
+                    <Button variant="outline" onClick={handleClose}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -771,13 +1234,33 @@ function FinalizarDialog({
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
     seguimiento: SeguimientoTable | null
-    onConfirm: () => void
+    onConfirm: (observacion: string) => void
     }) {
+    
+    const [observacion, setObservacion] = React.useState("")
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    const handleConfirm = async () => {
+        setIsSubmitting(true)
+        try {
+            await onConfirm(observacion)
+            setObservacion("")
+        } catch (error) {
+            console.error('Error en confirmación:', error)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleClose = () => {
+        setObservacion("")
+        setIsOpen(false)
+    }
     
     if (!seguimiento) return null
 
     return (
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+        <AlertDialog open={isOpen} onOpenChange={handleClose}>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>¿Finalizar seguimiento?</AlertDialogTitle>
@@ -786,11 +1269,255 @@ function FinalizarDialog({
                 No podrás registrar nuevas interacciones. ¿Estás seguro?
             </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="py-4">
+                <Label htmlFor="observacion">Observación (opcional)</Label>
+                <Textarea
+                    id="observacion"
+                    placeholder="Añade una observación sobre el cierre del seguimiento..."
+                    value={observacion}
+                    onChange={(e) => setObservacion(e.target.value)}
+                    rows={3}
+                    className="mt-2"
+                />
+            </div>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={onConfirm}>Confirmar y Finalizar</AlertDialogAction>
+                <AlertDialogCancel onClick={handleClose}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={handleConfirm}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? 'Finalizando...' : 'Confirmar y Finalizar'}
+                </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>
+    )
+}
+
+function SeguimientoFormDialog({
+    isOpen,
+    setIsOpen,
+    onRefresh,
+    }: {
+    isOpen: boolean
+    setIsOpen: (isOpen: boolean) => void
+    onRefresh: () => void
+    }) {
+    
+    const [formData, setFormData] = React.useState({
+        adopcionId: 0,
+        seguimientoTipoId: 0, // Se actualizará cuando se carguen los tipos
+        fechaInteraccion: new Date().toISOString().slice(0, 16), // Formato YYYY-MM-DDTHH:MM
+        descripcion: ""
+    })
+    const [formErrors, setFormErrors] = React.useState<{[key: string]: string}>({})
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    // Hook para obtener adopciones
+    const { adopciones, fetchAdopciones } = useAdopciones()
+    const { createSeguimiento, seguimientoTipos, fetchSeguimientoTipos } = useSeguimientos()
+
+    // Cargar adopciones y tipos de seguimiento al abrir el diálogo
+    React.useEffect(() => {
+        if (isOpen) {
+            fetchAdopciones()
+            fetchSeguimientoTipos()
+        }
+    }, [isOpen, fetchAdopciones, fetchSeguimientoTipos])
+
+    // Actualizar el valor por defecto del tipo cuando se carguen los tipos
+    React.useEffect(() => {
+        if (seguimientoTipos.length > 0 && formData.seguimientoTipoId === 0) {
+            setFormData(prev => ({ ...prev, seguimientoTipoId: seguimientoTipos[0].seguimientoTipoId }))
+        }
+    }, [seguimientoTipos, formData.seguimientoTipoId])
+
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+        // Limpiar error del campo
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: "" }))
+        }
+    }
+
+    const handleSelectChange = (field: string) => (value: string) => {
+        setFormData(prev => ({ ...prev, [field]: parseInt(value) }))
+        // Limpiar error del campo
+        if (formErrors[field]) {
+            setFormErrors(prev => ({ ...prev, [field]: "" }))
+        }
+    }
+
+    const resetForm = () => {
+        setFormData({
+            adopcionId: 0,
+            seguimientoTipoId: 0,
+            fechaInteraccion: new Date().toISOString().slice(0, 16),
+            descripcion: ""
+        })
+        setFormErrors({})
+    }
+
+    const validateForm = () => {
+        const errors: {[key: string]: string} = {}
+        
+        if (!formData.adopcionId) {
+            errors.adopcionId = 'Debes seleccionar una adopción'
+        }
+        
+        if (!formData.seguimientoTipoId) {
+            errors.seguimientoTipoId = 'Debes seleccionar un tipo de seguimiento'
+        }
+        
+        if (!formData.fechaInteraccion) {
+            errors.fechaInteraccion = 'La fecha de interacción es obligatoria'
+        }
+        
+        if (!formData.descripcion || formData.descripcion.trim() === '') {
+            errors.descripcion = 'La descripción es obligatoria'
+        }
+        
+        setFormErrors(errors)
+        return Object.keys(errors).length === 0
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        
+        if (!validateForm()) {
+            toast.error('Por favor, completa todos los campos obligatorios')
+            return
+        }
+        
+        setIsSubmitting(true)
+        try {
+            await createSeguimiento({
+                adopcionId: formData.adopcionId,
+                seguimientoTipoId: formData.seguimientoTipoId,
+                fechaInteraccion: new Date(formData.fechaInteraccion).toISOString(),
+                descripcion: formData.descripcion
+            })
+            
+            toast.success('Seguimiento creado exitosamente')
+            setIsOpen(false)
+            resetForm()
+            onRefresh()
+            
+        } catch (error: any) {
+            console.error('Error al crear seguimiento:', error)
+            
+            // Parsear el error del backend para mostrar el detail en toaster
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                toast.error(error.response.data.detail)
+            } else {
+                toast.error('Ocurrió un error al crear el seguimiento')
+            }
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleCloseModal = () => {
+        setIsOpen(false)
+        resetForm()
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleCloseModal}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Crear Nuevo Seguimiento</DialogTitle>
+                    <DialogDescription>
+                        Registra un nuevo seguimiento para una adopción existente.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="adopcionId">Adopción *</Label>
+                        <Select 
+                            value={formData.adopcionId.toString()} 
+                            onValueChange={handleSelectChange('adopcionId')}
+                        >
+                            <SelectTrigger id="adopcionId" className={formErrors.adopcionId ? 'border-red-500' : ''}>
+                                <SelectValue placeholder="Selecciona una adopción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {adopciones.map((adopcion) => (
+                                    <SelectItem key={adopcion.adopcionId} value={adopcion.adopcionId.toString()}>
+                                        {adopcion.animal.nombre} - {adopcion.usuario?.nombres} {adopcion.usuario?.apellidos}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formErrors.adopcionId && (
+                            <p className="text-sm text-red-500">{formErrors.adopcionId}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="seguimientoTipoId">Tipo de Seguimiento *</Label>
+                        <Select 
+                            value={formData.seguimientoTipoId.toString()} 
+                            onValueChange={handleSelectChange('seguimientoTipoId')}
+                        >
+                            <SelectTrigger id="seguimientoTipoId" className={formErrors.seguimientoTipoId ? 'border-red-500' : ''}>
+                                <SelectValue placeholder="Selecciona un tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {seguimientoTipos.map((tipo) => (
+                                    <SelectItem key={tipo.seguimientoTipoId} value={tipo.seguimientoTipoId.toString()}>
+                                        {tipo.nombre}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formErrors.seguimientoTipoId && (
+                            <p className="text-sm text-red-500">{formErrors.seguimientoTipoId}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="fechaInteraccion">Fecha de Interacción *</Label>
+                        <Input
+                            id="fechaInteraccion"
+                            name="fechaInteraccion"
+                            type="datetime-local"
+                            value={formData.fechaInteraccion}
+                            onChange={handleValueChange}
+                            className={formErrors.fechaInteraccion ? 'border-red-500' : ''}
+                        />
+                        {formErrors.fechaInteraccion && (
+                            <p className="text-sm text-red-500">{formErrors.fechaInteraccion}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="descripcion">Descripción *</Label>
+                        <Textarea
+                            id="descripcion"
+                            name="descripcion"
+                            placeholder="Describe la interacción realizada..."
+                            value={formData.descripcion}
+                            onChange={handleValueChange}
+                            rows={4}
+                            className={formErrors.descripcion ? 'border-red-500' : ''}
+                        />
+                        {formErrors.descripcion && (
+                            <p className="text-sm text-red-500">{formErrors.descripcion}</p>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={handleCloseModal}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Creando...' : 'Crear Seguimiento'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 } 
