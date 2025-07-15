@@ -57,7 +57,6 @@ import { useAdopciones } from "@/hooks/useAdopciones"
 import { useAuth } from "@/hooks/useAuth"
 import { useAppStore } from "@/lib/store"
 import type { Seguimiento as SeguimientoBackend } from "@/services/seguimientosService"
-import type { Adopcion } from "@/services/adopcionesService"
 import { toast } from "sonner"
 
 // Función de utilidad para manejar fechas de forma segura
@@ -197,8 +196,6 @@ export default function SeguimientoPage() {
     error, 
     fetchSeguimientos, 
     fetchSeguimientosByUsuario,
-    updateSeguimiento,
-    createSeguimiento,
     cerrarSeguimiento
   } = useSeguimientos()
   const { isColaborator } = useAppStore()
@@ -725,7 +722,7 @@ function EditarSeguimientoDialog({
     })
     const [formErrors, setFormErrors] = React.useState<{[key: string]: string}>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-    const [detalles, setDetalles] = React.useState<SeguimientoDetalle | null>(null)
+    const [_detalles, setDetalles] = React.useState<SeguimientoDetalle | null>(null)
 
     // Usar el hook de seguimientos
     const { fetchSeguimiento, updateSeguimiento, seguimientoTipos, fetchSeguimientoTipos } = useSeguimientos()

@@ -138,9 +138,9 @@ describe('useSeguimientos', () => {
 
     const data = {
       adopcionId: 1,
-      fechaSeguimiento: '2023-01-01',
-      observaciones: 'Nueva observación',
-      estado: 'PENDIENTE',
+      seguimientoTipoId: 1,
+      fechaInteraccion: '2023-01-01T00:00:00Z',
+      descripcion: 'Nueva observación',
     };
 
     const seguimiento = await act(async () => {
@@ -242,7 +242,7 @@ describe('useSeguimientos', () => {
     // Probar error en create
     await act(async () => {
       try {
-        await result.current.createSeguimiento({ adopcionId: 1, fechaSeguimiento: '2023-01-01', observaciones: 'test', estado: 'PENDIENTE' });
+        await result.current.createSeguimiento({ adopcionId: 1, seguimientoTipoId: 1, fechaInteraccion: '2023-01-01T00:00:00Z', descripcion: 'test' });
       } catch (error) {
         // Error esperado
       }
